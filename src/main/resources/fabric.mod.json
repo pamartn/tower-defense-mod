@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "towerdefense",
+  "version": "${version}",
+  "name": "Tower Defense",
+  "description": "Place block combinations to build auto-targeting defense towers! PvP tower defense in Minecraft.",
+  "authors": [
+    "Jaguar"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.towerdefense.TowerDefenseMod"
+    ],
+    "client": [
+      "com.towerdefense.TowerDefenseModClient"
+    ]
+  },
+  "accessWidener": "towerdefense.accesswidener",
+  "mixins": [
+    "towerdefense.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.21.4",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

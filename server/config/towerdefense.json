@@ -1,0 +1,283 @@
+{
+  "game": {
+    "startingMoney": 500,
+    "nexusMaxHp": 100,
+    "tier2Cost": 200,
+    "tier3Cost": 500,
+    "nexusExplosionRadius": 3.5,
+    "prepPhaseTicks": 600,
+    "basePassiveIncome": 2,
+    "basePassiveInterval": 200,
+    "defeatDelayTicks": 100,
+    "chainExplosionDelay": 5
+  },
+  "arena": {
+    "size": 64,
+    "wallHeight": 15,
+    "arenaY": 64,
+    "standDepth": 12,
+    "standHeight": 20
+  },
+  "mobs": {
+    "ENDERMAN": {
+      "baseHp": 25.0,
+      "speed": 0.25,
+      "nexusDamage": 5,
+      "moneyReward": 12
+    },
+    "BOSS": {
+      "baseHp": 300.0,
+      "speed": 0.08,
+      "nexusDamage": 50,
+      "moneyReward": 100
+    },
+    "BABY_ZOMBIE": {
+      "baseHp": 8.0,
+      "speed": 0.3,
+      "nexusDamage": 3,
+      "moneyReward": 3
+    },
+    "CREEPER": {
+      "baseHp": 15.0,
+      "speed": 0.15,
+      "nexusDamage": 30,
+      "moneyReward": 15
+    },
+    "ZOMBIE": {
+      "baseHp": 20.0,
+      "speed": 0.18,
+      "nexusDamage": 5,
+      "moneyReward": 5
+    },
+    "WITCH": {
+      "baseHp": 18.0,
+      "speed": 0.18,
+      "nexusDamage": 4,
+      "moneyReward": 10
+    },
+    "IRON_GOLEM": {
+      "baseHp": 150.0,
+      "speed": 0.1,
+      "nexusDamage": 25,
+      "moneyReward": 60
+    },
+    "SPIDER": {
+      "baseHp": 10.0,
+      "speed": 0.35,
+      "nexusDamage": 2,
+      "moneyReward": 10
+    },
+    "RAVAGER": {
+      "baseHp": 80.0,
+      "speed": 0.15,
+      "nexusDamage": 20,
+      "moneyReward": 50
+    },
+    "SKELETON": {
+      "baseHp": 15.0,
+      "speed": 0.23,
+      "nexusDamage": 3,
+      "moneyReward": 8
+    }
+  },
+  "spawners": {
+    "SPIDER_SPAWNER": {
+      "price": 35,
+      "spawnIntervalTicks": 160
+    },
+    "ENDERMAN_SPAWNER": {
+      "price": 45,
+      "spawnIntervalTicks": 240
+    },
+    "RAVAGER_SPAWNER": {
+      "price": 100,
+      "spawnIntervalTicks": 600
+    },
+    "BABY_ZOMBIE_SPAWNER": {
+      "price": 10,
+      "spawnIntervalTicks": 120
+    },
+    "BOSS_SPAWNER": {
+      "price": 500,
+      "spawnIntervalTicks": 1200
+    },
+    "SKELETON_SPAWNER": {
+      "price": 25,
+      "spawnIntervalTicks": 240
+    },
+    "WITCH_SPAWNER": {
+      "price": 50,
+      "spawnIntervalTicks": 300
+    },
+    "ZOMBIE_SPAWNER": {
+      "price": 15,
+      "spawnIntervalTicks": 200
+    },
+    "CREEPER_SPAWNER": {
+      "price": 40,
+      "spawnIntervalTicks": 300
+    },
+    "IRON_GOLEM_SPAWNER": {
+      "price": 120,
+      "spawnIntervalTicks": 700
+    }
+  },
+  "towers": {
+    "CANNON": {
+      "power": 8,
+      "range": 16.0,
+      "fireRateInTicks": 60,
+      "price": 50
+    },
+    "SNIPER": {
+      "power": 15,
+      "range": 25.0,
+      "fireRateInTicks": 80,
+      "price": 75
+    },
+    "CHAIN_LIGHTNING": {
+      "power": 3,
+      "range": 12.0,
+      "fireRateInTicks": 45,
+      "price": 60
+    },
+    "LASER": {
+      "power": 6,
+      "range": 20.0,
+      "fireRateInTicks": 25,
+      "price": 100
+    },
+    "FIRE": {
+      "power": 1,
+      "range": 10.0,
+      "fireRateInTicks": 40,
+      "price": 40
+    },
+    "SLOW": {
+      "power": 0,
+      "range": 12.0,
+      "fireRateInTicks": 60,
+      "price": 35
+    },
+    "POISON": {
+      "power": 0,
+      "range": 8.0,
+      "fireRateInTicks": 50,
+      "price": 30
+    },
+    "AOE": {
+      "power": 4,
+      "range": 10.0,
+      "fireRateInTicks": 55,
+      "price": 55
+    },
+    "ARCHER": {
+      "power": 2,
+      "range": 12.0,
+      "fireRateInTicks": 35,
+      "price": 25
+    },
+    "BASIC": {
+      "power": 2,
+      "range": 8.0,
+      "fireRateInTicks": 40,
+      "price": 10
+    }
+  },
+  "generators": {
+    "ELITE": {
+      "price": 150,
+      "incomeAmount": 15,
+      "incomeIntervalTicks": 200
+    },
+    "BASIC": {
+      "price": 25,
+      "incomeAmount": 2,
+      "incomeIntervalTicks": 200
+    },
+    "ADVANCED": {
+      "price": 60,
+      "incomeAmount": 5,
+      "incomeIntervalTicks": 200
+    }
+  },
+  "spells": {
+    "FREEZE_BOMB": {
+      "price": 150
+    },
+    "SHIELD": {
+      "price": 300
+    },
+    "FIREBALL": {
+      "price": 200
+    },
+    "LIGHTNING": {
+      "price": 100
+    },
+    "HEAL_NEXUS": {
+      "price": 250
+    }
+  },
+  "weapons": {
+    "Netherite Sword": 150,
+    "Diamond Sword": 80,
+    "Iron Sword": 40,
+    "Wood Sword": 15,
+    "Ench. Netherite": 300
+  },
+  "walls": {
+    "Wool Wall": 4,
+    "Cobblestone Wall": 10,
+    "Oak Planks Wall": 6
+  },
+  "upgrades": {
+    "hpBaseCost": 20,
+    "speedBaseCost": 25,
+    "damageBaseCost": 30,
+    "spawnerExtraCostPerUpgrade": 5,
+    "hpMultiplierPerLevel": 0.2,
+    "speedMultiplierPerLevel": 0.1,
+    "towerUpgradeBaseCost": 25,
+    "towerPowerMultiplierPerLevel": 0.15,
+    "towerFireRateMultiplierPerLevel": 0.1,
+    "towerEffectDurationMultiplierPerLevel": 0.2
+  },
+  "spellEffects": {
+    "fireballLifetime": 200,
+    "fireballExplosionRadius": 3.0,
+    "freezeDurationTicks": 100,
+    "healNexusAmount": 15,
+    "lightningBoxSize": 6,
+    "lightningDamage": 1000,
+    "shieldDurationTicks": 200
+  },
+  "towerEffects": {
+    "fireTicks": 200,
+    "slowDurationTicks": 100,
+    "slowAmplifier": 1,
+    "poisonDurationTicks": 120,
+    "poisonAmplifier": 1,
+    "chainLightningBoxSize": 8,
+    "chainLightningMaxTargets": 2,
+    "aoeBoxSize": 8.0,
+    "aoeDamageRadius": 4.0
+  },
+  "spawnerEffects": {
+    "spawnSpread": 2.0,
+    "endermanTeleportRange": 8.0,
+    "witchHealBoxSize": 6,
+    "witchHealDurationTicks": 60,
+    "witchHealIntervalTicks": 120,
+    "witchHealAmount": 0.2,
+    "followRange": 128.0,
+    "specialMobTickInterval": 60
+  },
+  "gameEvents": {
+    "waveEventIntervalTicks": 2400,
+    "bonusMoney": 50,
+    "doubleIncomeMultiplier": 3,
+    "speedBoostDurationTicks": 400,
+    "structureDestroyedBounty": 10,
+    "oreSpawnIntervalTicks": 400
+  }
+}

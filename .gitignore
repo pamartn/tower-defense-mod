@@ -1,0 +1,45 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+out/
+
+# Minecraft server runtime
+server/logs/
+server/crash-reports/
+server/world/
+server/banned-ips.json
+server/banned-players.json
+server/usercache.json
+server/whitelist.json
+server/ops.json
+server/server.properties
+server/eula.txt
+server/libraries/
+server/versions/
+server/.fabric/
+server/fabric-server-launch.jar
+server/mods/
+
+# JDK bundled
+jdk-*/
+
+# Runtime
+run/
+*.log
+
+# Build artifacts
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# OS
+.DS_Store
+Thumbs.db

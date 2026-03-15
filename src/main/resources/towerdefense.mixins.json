@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "com.towerdefense.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ServerPlayerInteractionMixin",
+    "BedrockBreakMixin",
+    "BlockBreakMixin",
+    "MobSunBurnMixin",
+    "MobDropMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
