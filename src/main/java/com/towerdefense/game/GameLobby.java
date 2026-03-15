@@ -41,4 +41,9 @@ public class GameLobby {
     public boolean canStart(int team1Count, int team2Count) {
         return team1Count + team2Count >= 2;
     }
+
+    /** Can start solo mode: exactly 1 player (host alone). */
+    public boolean canStartSolo(int team1Count, int team2Count) {
+        return team1Count + team2Count == 1;
+    }
 }

@@ -17,6 +17,7 @@ Two teams face off in an arena: defend your Nexus, build towers and walls, spawn
 - **5 spells** — Fireball, Freeze, Heal Nexus, Lightning, Shield
 - **Wall blocks** — Wool, Oak, Cobblestone (4-block pillars, fireball-resistant)
 - **Lobby system** — Host creates, players join, manual start when ready
+- **Solo mode** — Play alone vs AI (villager avatar, resource allocation strategy, economic bonuses)
 - **Configurable** — JSON config + web UI for balancing
 
 ---
@@ -35,7 +36,7 @@ Two teams face off in an arena: defend your Nexus, build towers and walls, spawn
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 1.21.4
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api)
-3. Download the mod JAR from `build/libs/tower-defense-1.0.0.jar` (after building)
+3. Download the mod JAR from [Releases](https://github.com/pamartn/tower-defense-mod/releases) or `build/libs/tower-defense-1.1.0.jar` (after building)
 4. Place the JAR in your `.minecraft/mods/` folder
 
 ---
@@ -48,7 +49,7 @@ All commands use the `/td` prefix.
 
 | Command | Description |
 |---------|-------------|
-| `/td start` | **Create lobby** — Host creates a lobby and is auto-assigned to Team 1. When 2+ players are in, host runs again to **start the game**. |
+| `/td start` | **Create lobby** — Host creates a lobby and is auto-assigned to Team 1. When 2+ players are in, host runs again to **start the game**. When alone, host runs again to **start solo mode** (vs AI). |
 | `/td join` | **Quick join** — Join the lobby (auto-assigned to the smaller team). Only works when game is in lobby. |
 | `/td join 1` / `/td join 2` | **Switch team** — Change teams (lobby or prep phase only). |
 | `/td join <player>` | **Request join** — Request to join a game. Target uses `/td accept` to approve. |
@@ -64,11 +65,15 @@ All commands use the `/td` prefix.
 1. Host: /td start          → Lobby created, host in Team 1
 2. Others: /td join         → Auto-join smaller team
    (or: /td invite <p> + /td accept)
-3. Host: /td start          → Game begins (need 2+ players)
+3. Host: /td start          → Game begins (2+ players) or Solo mode (1 player)
 4. Prep phase               → Build defenses on your half
 5. Playing                  → Waves spawn, mobs attack enemy Nexus
 6. Victory                  → First team to lose Nexus loses
 ```
+
+### Solo Mode
+
+When the host is alone in the lobby and runs `/td start` again, solo mode launches: you vs AI. The AI is represented by a villager that wanders on its half. The AI has economic bonuses (higher starting money, passive income, generator output) and allocates resources: ~15% income, ~35% defense (towers, walls), ~50% attack (spawners, spells). Config: `soloModeStartingMultiplier`, `soloModeIncomeMultiplier`, `soloModeGeneratorMultiplier` in `towerdefense.json`.
 
 ---
 
@@ -165,7 +170,7 @@ cd tower-defense-mod
 ./gradlew build
 ```
 
-Output: `build/libs/tower-defense-1.0.0.jar`
+Output: `build/libs/tower-defense-1.1.0.jar`
 
 ### Deploy to Remote Server
 

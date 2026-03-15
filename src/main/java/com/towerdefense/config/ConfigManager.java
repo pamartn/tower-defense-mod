@@ -194,6 +194,9 @@ public class ConfigManager {
         if (c.game == null) c.game = new TDConfig.GameSection();
         if (c.game.tier2Cost == 0) c.game.tier2Cost = 200;
         if (c.game.tier3Cost == 0) c.game.tier3Cost = 500;
+        if (c.game.soloModeStartingMultiplier <= 0) c.game.soloModeStartingMultiplier = 1.5;
+        if (c.game.soloModeIncomeMultiplier <= 0) c.game.soloModeIncomeMultiplier = 1.5;
+        if (c.game.soloModeGeneratorMultiplier <= 0) c.game.soloModeGeneratorMultiplier = 1.5;
         if (c.arena == null) c.arena = new TDConfig.ArenaSection();
         if (c.mobs == null) c.mobs = new java.util.HashMap<>();
         if (c.spawners == null) c.spawners = new java.util.HashMap<>();
@@ -324,6 +327,33 @@ public class ConfigManager {
         lock.readLock().lock();
         try {
             return config.game.chainExplosionDelay;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public double getSoloModeStartingMultiplier() {
+        lock.readLock().lock();
+        try {
+            return config.game.soloModeStartingMultiplier > 0 ? config.game.soloModeStartingMultiplier : 1.5;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public double getSoloModeIncomeMultiplier() {
+        lock.readLock().lock();
+        try {
+            return config.game.soloModeIncomeMultiplier > 0 ? config.game.soloModeIncomeMultiplier : 1.5;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public double getSoloModeGeneratorMultiplier() {
+        lock.readLock().lock();
+        try {
+            return config.game.soloModeGeneratorMultiplier > 0 ? config.game.soloModeGeneratorMultiplier : 1.5;
         } finally {
             lock.readLock().unlock();
         }

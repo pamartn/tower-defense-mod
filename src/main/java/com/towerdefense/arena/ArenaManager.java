@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StairBlock;
@@ -625,6 +626,15 @@ public class ArenaManager {
         if (!GameConfig.isInsideArena(pos) || !GameConfig.isInsidePlayerHalf(pos, side)) {
             BlockPos spawn = side == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
             player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+        }
+    }
+
+    /** Confine entity (e.g. AI villager) to team half. */
+    public void confineEntity(Entity entity, int side) {
+        BlockPos pos = entity.blockPosition();
+        if (!GameConfig.isInsideArena(pos) || !GameConfig.isInsidePlayerHalf(pos, side)) {
+            BlockPos spawn = side == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
+            entity.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
         }
     }
 }

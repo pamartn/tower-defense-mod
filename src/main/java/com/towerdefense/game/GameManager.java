@@ -1,6 +1,7 @@
 package com.towerdefense.game;
 
 import com.towerdefense.TowerDefenseMod;
+import com.towerdefense.ai.SoloAI;
 import com.towerdefense.config.ConfigManager;
 import com.towerdefense.arena.ArenaManager;
 import com.towerdefense.arena.NexusManager;
@@ -24,6 +25,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.phys.AABB;
@@ -65,6 +67,10 @@ public class GameManager {
 
     private TowerManager towerManager;
     private int playingPhaseTicks;
+
+    private boolean soloMode = false;
+    private SoloAI soloAI;
+    private Villager aiVillagerEntity;
 
     public void setTowerManager(TowerManager towerManager) {
         this.towerManager = towerManager;
@@ -110,6 +116,18 @@ public class GameManager {
 
         transitionLobbyToPrep();
         return true;
+    }
+
+    /** Start solo mode: host alone vs AI. */
+    public void startSoloMode(ServerPlayer host) {
+        if (state != GameState.LOBBY || lobby == null) return;
+        if (!lobby.getHostUUID().equals(host.getUUID())) return;
+
+        soloMode = true;
+        transitionLobbyToPrep();
+        host.sendSystemMessage(Component.literal("Solo mode! You vs AI. Good luck!")
+                .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD));
+        TowerDefenseMod.LOGGER.info("Tower Defense solo mode started by {}", host.getName().getString());
     }
 
     /** Add player to team. In LOBBY, host must use /td start to begin. */
@@ -182,6 +200,8 @@ public class GameManager {
         tierManager.initTeam(2);
 
         incomeGeneratorManager.setMoneyManagerLookup(this::getMoneyManagerForTeam);
+        incomeGeneratorManager.setIncomeMultiplierForAITeam(() ->
+                soloMode ? ConfigManager.getInstance().getSoloModeGeneratorMultiplier() : 1.0);
         spawnerManager.setUpgradeManager(mobUpgradeManager);
         if (towerManager != null) towerManager.setTowerUpgradeManager(towerUpgradeManager);
 
@@ -202,18 +222,38 @@ public class GameManager {
 
         for (PlayerState ps : playerStates.values()) {
             HudManager.sendTitle(ps.getPlayer(),
-                    Component.literal("PVP TOWER DEFENSE").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
-                    Component.literal("30s to prepare!").withStyle(ChatFormatting.YELLOW),
+                    Component.literal(soloMode ? "SOLO MODE" : "PVP TOWER DEFENSE").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
+                    Component.literal(soloMode ? "You vs AI!" : "30s to prepare!").withStyle(ChatFormatting.YELLOW),
                     10, 60, 20);
             ps.getPlayer().sendSystemMessage(Component.literal("═══════════════════════════════").withStyle(ChatFormatting.GOLD));
-            ps.getPlayer().sendSystemMessage(Component.literal("  \u2694 Tower Defense PvP").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+            ps.getPlayer().sendSystemMessage(Component.literal("  \u2694 " + (soloMode ? "Solo vs AI" : "Tower Defense PvP")).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
             ps.getPlayer().sendSystemMessage(Component.literal("  Defend your Nexus! Destroy the enemy!").withStyle(ChatFormatting.YELLOW));
             ps.getPlayer().sendSystemMessage(Component.literal("  You are Team " + ps.getSide()).withStyle(ChatFormatting.AQUA));
             ps.getPlayer().sendSystemMessage(Component.literal("  Prep phase: 30 seconds").withStyle(ChatFormatting.GRAY));
             ps.getPlayer().sendSystemMessage(Component.literal("═══════════════════════════════").withStyle(ChatFormatting.GOLD));
         }
+
+        if (soloMode) {
+            int startMoney = (int) (GameConfig.STARTING_MONEY() * ConfigManager.getInstance().getSoloModeStartingMultiplier());
+            team2.getMoneyManager().resetWithAmount(startMoney);
+            soloAI = new SoloAI(this);
+            spawnAIVillager();
+        }
+
         lobby = null;
-        TowerDefenseMod.LOGGER.info("Tower Defense prep phase started");
+        TowerDefenseMod.LOGGER.info("Tower Defense prep phase started" + (soloMode ? " (solo mode)" : ""));
+    }
+
+    private void spawnAIVillager() {
+        if (world == null || team2 == null) return;
+        BlockPos spawn = GameConfig.getPlayer2SpawnPoint();
+        aiVillagerEntity = new Villager(net.minecraft.world.entity.EntityType.VILLAGER, world);
+        aiVillagerEntity.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+        aiVillagerEntity.setInvulnerable(true);
+        aiVillagerEntity.setCustomName(Component.literal("AI"));
+        aiVillagerEntity.setCustomNameVisible(true);
+        aiVillagerEntity.addTag("td_ai_villager");
+        world.addFreshEntity(aiVillagerEntity);
     }
 
     public void removePlayerFromGame(UUID uuid) {
@@ -284,6 +324,13 @@ public class GameManager {
             if (ps.getPlayer() != null) playerKit.resetPlayer(ps.getPlayer());
         }
 
+        if (aiVillagerEntity != null && aiVillagerEntity.isAlive()) {
+            aiVillagerEntity.discard();
+            aiVillagerEntity = null;
+        }
+        soloAI = null;
+        soloMode = false;
+
         state = GameState.IDLE;
         sendAllPlayers(Component.literal("Game stopped.").withStyle(ChatFormatting.RED));
         team1 = null;
@@ -303,6 +350,12 @@ public class GameManager {
 
         for (PlayerState ps : playerStates.values()) {
             if (ps.getPlayer().isAlive()) arenaManager.confinePlayer(ps.getPlayer(), ps.getSide());
+        }
+        if (soloMode && aiVillagerEntity != null && aiVillagerEntity.isAlive()) {
+            arenaManager.confineEntity(aiVillagerEntity, 2);
+        }
+        if (soloMode && soloAI != null) {
+            soloAI.tick(world);
         }
 
         if (checkDisconnect()) return;
@@ -370,7 +423,11 @@ public class GameManager {
         if (passiveIncomeTicker <= 0) {
             passiveIncomeTicker = GameConfig.BASE_PASSIVE_INTERVAL();
             team1.getMoneyManager().addMoney(GameConfig.BASE_PASSIVE_INCOME());
-            team2.getMoneyManager().addMoney(GameConfig.BASE_PASSIVE_INCOME());
+            int t2Income = GameConfig.BASE_PASSIVE_INCOME();
+            if (soloMode) {
+                t2Income = (int) (t2Income * ConfigManager.getInstance().getSoloModeIncomeMultiplier());
+            }
+            team2.getMoneyManager().addMoney(t2Income);
         }
 
         waveEventTicker--;
@@ -384,16 +441,20 @@ public class GameManager {
         int event = eventRandom.nextInt(3);
         switch (event) {
             case 0 -> {
+                int bonus = ConfigManager.getInstance().getBonusMoney();
+                team1.getMoneyManager().addMoney(bonus);
+                team2.getMoneyManager().addMoney(bonus);
                 for (PlayerState ps : playerStates.values()) {
-                    ps.getMoneyManager().addMoney(ConfigManager.getInstance().getBonusMoney());
                     HudManager.sendTitle(ps.getPlayer(),
                             Component.literal("BONUS!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
                             Component.literal("Free $50 for everyone!").withStyle(ChatFormatting.GRAY), 5, 40, 10);
                 }
             }
             case 1 -> {
+                int extra = GameConfig.BASE_PASSIVE_INCOME() * ConfigManager.getInstance().getDoubleIncomeMultiplier();
+                team1.getMoneyManager().addMoney(extra);
+                team2.getMoneyManager().addMoney(extra);
                 for (PlayerState ps : playerStates.values()) {
-                    ps.getMoneyManager().addMoney(GameConfig.BASE_PASSIVE_INCOME() * ConfigManager.getInstance().getDoubleIncomeMultiplier());
                     HudManager.sendTitle(ps.getPlayer(),
                             Component.literal("DOUBLE INCOME!").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
                             Component.literal("Income boost for everyone!").withStyle(ChatFormatting.GRAY), 5, 40, 10);
@@ -496,7 +557,7 @@ public class GameManager {
     private boolean checkDisconnect() {
         if (team1 == null || team2 == null) return false;
         boolean team1Gone = team1.getMemberCount() == 0 || !hasAnyAlivePlayer(team1);
-        boolean team2Gone = team2.getMemberCount() == 0 || !hasAnyAlivePlayer(team2);
+        boolean team2Gone = soloMode ? false : (team2.getMemberCount() == 0 || !hasAnyAlivePlayer(team2));
 
         if (team1Gone && team2Gone) {
             stopGame();
@@ -535,9 +596,15 @@ public class GameManager {
     // ─── Path Check ───
 
     public boolean checkPathBlocked(PlayerState defender) {
+        return checkPathBlockedForTeam(defender.getSide());
+    }
+
+    public boolean checkPathBlockedForTeam(int defenderTeamId) {
         if (state == GameState.IDLE || world == null) return false;
         BlockPos midlineEntry = GameConfig.arenaOrigin.offset(GameConfig.ARENA_SIZE() / 2, 1, GameConfig.getMidlineZ());
-        return !pathValidator.hasPath(world, midlineEntry, defender.getNexusCenter());
+        BlockPos nexusCenter = defenderTeamId == 1 ? team1.getNexusManager().getCenter() : team2.getNexusManager().getCenter();
+        if (nexusCenter == null) return false;
+        return !pathValidator.hasPath(world, midlineEntry, nexusCenter);
     }
 
     // ─── Mob Death / Structure Destroyed ───
@@ -597,7 +664,8 @@ public class GameManager {
                 spawnerManager.getSpawnerCountForTeam(2),
                 incomeGeneratorManager.getGeneratorCountForTeam(2),
                 t2Income,
-                state == GameState.PREP_PHASE ? tickCounter / 20 : -1);
+                state == GameState.PREP_PHASE ? tickCounter / 20 : -1,
+                soloMode);
     }
 
     // ─── Helpers ───
@@ -677,9 +745,12 @@ public class GameManager {
         return switch (state) {
             case IDLE -> "No game running";
             case LOBBY -> "Lobby - invite players with /td invite <player>";
-            case PREP_PHASE -> "Prep phase - " + (tickCounter / 20) + "s remaining";
-            case PLAYING -> "PvP in progress";
+            case PREP_PHASE -> "Prep phase - " + (tickCounter / 20) + "s remaining" + (soloMode ? " (Solo)" : "");
+            case PLAYING -> soloMode ? "Solo - You vs AI" : "PvP in progress";
             case GAME_OVER -> "Game over";
         };
     }
+
+    public boolean isSoloMode() { return soloMode; }
+    public static int getAITeamId() { return 2; }
 }

@@ -235,7 +235,10 @@ const LABELS = {
   witchHealIntervalTicks:'Intervalle heal Witch (ticks)',
   witchHealAmount:'HP par heal Witch',followRange:'Portée follow',specialMobTickInterval:'Intervalle mobs spéciaux',
   waveEventIntervalTicks:'Intervalle événements vague',bonusMoney:'Bonus or',doubleIncomeMultiplier:'Multiplicateur double revenu',
-  speedBoostDurationTicks:'Durée speed boost',structureDestroyedBounty:'Prime structure détruite'
+  speedBoostDurationTicks:'Durée speed boost',  structureDestroyedBounty:'Prime structure détruite',
+  soloModeStartingMultiplier:'Multiplicateur argent départ solo',
+  soloModeIncomeMultiplier:'Multiplicateur revenu passif IA',
+  soloModeGeneratorMultiplier:'Multiplicateur générateurs IA'
 };
 function label(path){const k=path.split('.').pop();return LABELS[k]||k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}

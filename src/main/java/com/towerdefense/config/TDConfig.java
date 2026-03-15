@@ -35,6 +35,9 @@ public class TDConfig {
         public int basePassiveInterval = 200;
         public int defeatDelayTicks = 100;
         public int chainExplosionDelay = 5;
+        public double soloModeStartingMultiplier = 1.5;
+        public double soloModeIncomeMultiplier = 1.5;
+        public double soloModeGeneratorMultiplier = 1.5;
     }
 
     public static class ArenaSection {

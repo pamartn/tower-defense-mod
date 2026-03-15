@@ -94,6 +94,16 @@ public class TierManager {
         return buyTierUpgrade(player, moneyManager, targetTier, teamId);
     }
 
+    public boolean buyTierUpgradeForTeam(MoneyManager moneyManager, int teamId, int targetTier) {
+        if (!canBuyTier(teamId, targetTier)) return false;
+        int cost = getTierCost(targetTier);
+        if (!moneyManager.canAfford(cost)) return false;
+        moneyManager.spend(cost);
+        pendingUnlockTier.put(teamId, targetTier);
+        unlockTicksRemaining.put(teamId, UNLOCK_DELAY_TICKS);
+        return true;
+    }
+
     public void tick() {
         var gm = TowerDefenseMod.getInstance().getGameManager();
         if (gm == null || gm.getTeam1() == null || gm.getTeam2() == null) return;

@@ -167,6 +167,76 @@ public class SpellManager {
         return mySide == 1 ? 2 : 1;
     }
 
+    public boolean castSpellForTeam(ServerLevel world, int teamId, SpellType type) {
+        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
+        if (gm == null || !gm.isSoloMode()) return false;
+
+        var team = teamId == 1 ? gm.getTeam1() : gm.getTeam2();
+        if (team == null) return false;
+
+        int price = type.getPrice();
+        var mm = team.getMoneyManager();
+        if (!mm.canAfford(price)) return false;
+
+        mm.spend(price);
+        int enemyTeamId = teamId == 1 ? 2 : 1;
+
+        switch (type) {
+            case FIREBALL -> {
+                BlockPos from = team.getNexusCenter();
+                BlockPos to = team.getEnemyNexusCenter();
+                Vec3 dir = Vec3.atCenterOf(to).subtract(Vec3.atCenterOf(from)).normalize();
+                Vec3 spawnPos = Vec3.atCenterOf(from).add(dir.scale(3));
+                LargeFireball fb = new LargeFireball(world, null, dir, 1);
+                fb.setPos(spawnPos.x, spawnPos.y, spawnPos.z);
+                fb.setDeltaMovement(dir.scale(1.2));
+                world.addFreshEntity(fb);
+                fireballs.add(new TrackedFireball(fb, teamId));
+                world.playSound(null, BlockPos.containing(spawnPos), SoundEvents.GHAST_SHOOT, SoundSource.HOSTILE, 1.5f, 1.0f);
+            }
+            case FREEZE_BOMB -> {
+                String enemyTag = "td_owner_" + enemyTeamId;
+                for (Mob mob : gm.getSpawnerManager().getAliveMobs()) {
+                    if (!mob.isAlive()) continue;
+                    if (!mob.getTags().contains(enemyTag)) continue;
+                    mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ConfigManager.getInstance().getFreezeDurationTicks(), 127));
+                }
+                world.playSound(null, team.getNexusCenter(), SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.5f, 0.5f);
+            }
+            case HEAL_NEXUS -> {
+                team.getNexusManager().heal(ConfigManager.getInstance().getHealNexusAmount());
+                world.playSound(null, team.getNexusCenter(), SoundEvents.PLAYER_LEVELUP, SoundSource.HOSTILE, 1.0f, 1.0f);
+            }
+            case LIGHTNING -> {
+                BlockPos enemyNexus = team.getEnemyNexusCenter();
+                Vec3 target = Vec3.atCenterOf(enemyNexus);
+                LightningBolt bolt = (LightningBolt) EntityType.LIGHTNING_BOLT.create(world, EntitySpawnReason.COMMAND);
+                if (bolt != null) {
+                    bolt.moveTo(target.x, target.y, target.z);
+                    bolt.setVisualOnly(true);
+                    world.addFreshEntity(bolt);
+                }
+                String enemyTag = "td_owner_" + enemyTeamId;
+                int boxSize = ConfigManager.getInstance().getLightningBoxSize();
+                AABB killBox = AABB.ofSize(target, boxSize, boxSize, boxSize);
+                for (Entity e : world.getEntities((Entity) null, killBox, ent -> ent instanceof LivingEntity && ent.isAlive() && ent.getTags().contains("td_mob"))) {
+                    if (!e.getTags().contains(enemyTag)) continue;
+                    ((LivingEntity) e).hurt(world.damageSources().magic(), ConfigManager.getInstance().getLightningDamage());
+                }
+                world.playSound(null, enemyNexus, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.HOSTILE, 2.0f, 1.0f);
+            }
+            case SHIELD -> {
+                team.getNexusManager().activateShield(ConfigManager.getInstance().getShieldDurationTicks());
+                world.playSound(null, team.getNexusCenter(), SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.HOSTILE, 1.5f, 1.0f);
+            }
+            default -> {
+                mm.addMoney(price);
+                return false;
+            }
+        }
+        return true;
+    }
+
     public void tick(ServerLevel world) {
         Iterator<TrackedFireball> it = fireballs.iterator();
         while (it.hasNext()) {

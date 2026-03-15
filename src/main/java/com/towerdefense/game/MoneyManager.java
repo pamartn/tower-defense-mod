@@ -53,4 +53,8 @@ public class MoneyManager {
     public void reset() {
         money = GameConfig.STARTING_MONEY();
     }
+
+    public void resetWithAmount(int amount) {
+        money = amount;
+    }
 }

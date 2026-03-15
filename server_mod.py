@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-JAR_NAME = "tower-defense-1.0.0.jar"
+JAR_NAME = "tower-defense-1.1.0.jar"
 JAR_PATH = SCRIPT_DIR / "build" / "libs" / JAR_NAME
 
 

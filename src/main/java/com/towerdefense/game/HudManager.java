@@ -39,6 +39,14 @@ public class HudManager {
                         int p1Money, int p1Hp, int p1MaxHp, int p1Spawners, int p1Gens, int p1IncomeRate,
                         int p2Money, int p2Hp, int p2MaxHp, int p2Spawners, int p2Gens, int p2IncomeRate,
                         int prepTimeSeconds) {
+        update(scoreboard, p1Money, p1Hp, p1MaxHp, p1Spawners, p1Gens, p1IncomeRate,
+                p2Money, p2Hp, p2MaxHp, p2Spawners, p2Gens, p2IncomeRate, prepTimeSeconds, false);
+    }
+
+    public void update(Scoreboard scoreboard,
+                        int p1Money, int p1Hp, int p1MaxHp, int p1Spawners, int p1Gens, int p1IncomeRate,
+                        int p2Money, int p2Hp, int p2MaxHp, int p2Spawners, int p2Gens, int p2IncomeRate,
+                        int prepTimeSeconds, boolean soloMode) {
         if (objective == null) return;
 
         long hash = hash(p1Money, p1Hp, p1MaxHp, p1Spawners, p1Gens, p1IncomeRate,
@@ -52,7 +60,7 @@ public class HudManager {
 
         int line = 14;
 
-        setLine(scoreboard, ChatFormatting.AQUA + "-- Player 1 --", line--);
+        setLine(scoreboard, ChatFormatting.AQUA + "-- " + (soloMode ? "You" : "Player 1") + " --", line--);
         setLine(scoreboard, ChatFormatting.GREEN + "  $ " + ChatFormatting.WHITE + p1Money + ChatFormatting.DARK_GREEN + " (+" + p1IncomeRate + "/10s)", line--);
         ChatFormatting hp1Color = hpColor(p1Hp, p1MaxHp);
         setLine(scoreboard, ChatFormatting.RED + "  \u2764 Nexus: " + hp1Color + p1Hp + "/" + p1MaxHp, line--);
@@ -60,7 +68,7 @@ public class HudManager {
 
         setLine(scoreboard, " ", line--);
 
-        setLine(scoreboard, ChatFormatting.LIGHT_PURPLE + "-- Player 2 --", line--);
+        setLine(scoreboard, ChatFormatting.LIGHT_PURPLE + "-- " + (soloMode ? "AI" : "Player 2") + " --", line--);
         setLine(scoreboard, ChatFormatting.GREEN + "  $ " + ChatFormatting.WHITE + p2Money + ChatFormatting.DARK_GREEN + " (+" + p2IncomeRate + "/10s)", line--);
         ChatFormatting hp2Color = hpColor(p2Hp, p2MaxHp);
         setLine(scoreboard, ChatFormatting.RED + "  \u2764 Nexus: " + hp2Color + p2Hp + "/" + p2MaxHp, line--);

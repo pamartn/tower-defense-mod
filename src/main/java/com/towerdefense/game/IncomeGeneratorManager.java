@@ -25,9 +25,14 @@ public class IncomeGeneratorManager {
 
     private final List<ActiveGenerator> generators = new ArrayList<>();
     private java.util.function.Function<Integer, MoneyManager> moneyManagerLookup;
+    private java.util.function.DoubleSupplier incomeMultiplierForAITeam = () -> 1.0;
 
     public void setMoneyManagerLookup(java.util.function.Function<Integer, MoneyManager> lookup) {
         this.moneyManagerLookup = lookup;
+    }
+
+    public void setIncomeMultiplierForAITeam(java.util.function.DoubleSupplier multiplier) {
+        this.incomeMultiplierForAITeam = multiplier != null ? multiplier : () -> 1.0;
     }
 
     public void placeGenerator(ServerLevel world, BlockPos basePos, IncomeGeneratorType type, int teamId) {
@@ -74,7 +79,11 @@ public class IncomeGeneratorManager {
                 if (moneyManagerLookup != null) {
                     MoneyManager mm = moneyManagerLookup.apply(gen.teamId());
                     if (mm != null) {
-                        mm.addMoney(gen.type().getIncomeAmount());
+                        int amount = gen.type().getIncomeAmount();
+                        if (gen.teamId() == GameManager.getAITeamId()) {
+                            amount = (int) (amount * incomeMultiplierForAITeam.getAsDouble());
+                        }
+                        mm.addMoney(amount);
                     }
                 }
             }

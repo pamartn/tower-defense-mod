@@ -67,6 +67,13 @@ public class TowerDefenseCommand {
             return 1;
         }
         if (gameManager.isLobby() && gameManager.isHost(caller.getUUID())) {
+            int t1 = gameManager.getTeam1() != null ? gameManager.getTeam1().getMemberCount() : 0;
+            int t2 = gameManager.getTeam2() != null ? gameManager.getTeam2().getMemberCount() : 0;
+            GameLobby lobby = gameManager.getLobby();
+            if (lobby != null && lobby.canStartSolo(t1, t2)) {
+                gameManager.startSoloMode(caller);
+                return 1;
+            }
             if (gameManager.startGameFromLobby(caller)) {
                 return 1;
             }

@@ -9,7 +9,10 @@
     "basePassiveIncome": 2,
     "basePassiveInterval": 200,
     "defeatDelayTicks": 100,
-    "chainExplosionDelay": 5
+    "chainExplosionDelay": 5,
+    "soloModeStartingMultiplier": 1.5,
+    "soloModeIncomeMultiplier": 1.5,
+    "soloModeGeneratorMultiplier": 1.5
   },
   "arena": {
     "size": 64,
@@ -94,7 +97,7 @@
       "spawnIntervalTicks": 600
     },
     "BABY_ZOMBIE_SPAWNER": {
-      "price": 10,
+      "price": 75,
       "spawnIntervalTicks": 120
     },
     "BOSS_SPAWNER": {

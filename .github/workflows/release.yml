@@ -33,14 +33,19 @@ jobs:
           files: |
             build/libs/tower-defense-*.jar
           body: |
-            ## Tower Defense Mod v1.0.0
+            ## Tower Defense Mod ${{ github.ref_name }}
             
             Mod tower defense 2v2 pour Minecraft 1.21.4 (Fabric).
+            
+            ### Nouveautés v1.1.0
+            - **Mode solo** : joue seul contre l'IA (villageois)
+            - IA avec stratégie (income, défense, attaque) et bonus économiques
+            - Script `server/start.sh` pour lancer le serveur avec Java 21
             
             ### Installation
             1. Installer [Fabric Loader](https://fabricmc.net/use/) pour Minecraft 1.21.4
             2. Installer [Fabric API](https://modrinth.com/mod/fabric-api)
-            3. Télécharger `tower-defense-1.0.0.jar` ci-dessous
+            3. Télécharger le JAR ci-dessous
             4. Placer le JAR dans `.minecraft/mods/`
           draft: false
         env:
