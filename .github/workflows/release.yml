@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -29,7 +32,16 @@ jobs:
         with:
           files: |
             build/libs/tower-defense-*.jar
-          generate_release_notes: true
+          body: |
+            ## Tower Defense Mod v1.0.0
+            
+            Mod tower defense 2v2 pour Minecraft 1.21.4 (Fabric).
+            
+            ### Installation
+            1. Installer [Fabric Loader](https://fabricmc.net/use/) pour Minecraft 1.21.4
+            2. Installer [Fabric API](https://modrinth.com/mod/fabric-api)
+            3. Télécharger `tower-defense-1.0.0.jar` ci-dessous
+            4. Placer le JAR dans `.minecraft/mods/`
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
