@@ -20,13 +20,17 @@ public record WeaponShopItem(String name, Item item, int defaultPrice, String de
         return ConfigManager.getInstance().getWeaponPrice(name);
     }
 
-    public int getTier() {
+    public int getDefaultTier() {
         return switch (name) {
             case "Wood Sword" -> 1;
             case "Iron Sword", "Diamond Sword" -> 2;
             case "Netherite Sword", "Ench. Netherite" -> 3;
             default -> 1;
         };
+    }
+
+    public int getTier() {
+        return ConfigManager.getInstance().getWeaponTier(this);
     }
 
     public static List<WeaponShopItem> getAll() {

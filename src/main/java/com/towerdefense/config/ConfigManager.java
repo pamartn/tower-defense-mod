@@ -143,6 +143,7 @@ public class ConfigManager {
             TDConfig.SpawnerSection sec = new TDConfig.SpawnerSection();
             sec.price = s.getDefaultPrice();
             sec.spawnIntervalTicks = s.getDefaultSpawnIntervalTicks();
+            sec.tier = s.getDefaultTier();
             c.spawners.put(s.name(), sec);
         }
         // Towers (from TowerRegistry defaults)
@@ -156,27 +157,36 @@ public class ConfigManager {
         c.towers.put("SNIPER", tower(15, 25, 80, 75));
         c.towers.put("CHAIN_LIGHTNING", tower(3, 12, 45, 60));
         c.towers.put("AOE", tower(4, 10, 55, 55));
+        // Towers (set tier)
+        for (TowerType t : TowerType.values()) {
+            TDConfig.TowerSection sec = c.towers.get(t.name());
+            if (sec != null) sec.tier = t.getDefaultTier();
+        }
         // Generators
         for (IncomeGeneratorType g : IncomeGeneratorType.values()) {
             TDConfig.GeneratorSection sec = new TDConfig.GeneratorSection();
             sec.price = g.getDefaultPrice();
             sec.incomeAmount = g.getDefaultIncomeAmount();
             sec.incomeIntervalTicks = g.getDefaultIncomeIntervalTicks();
+            sec.tier = g.getDefaultTier();
             c.generators.put(g.name(), sec);
         }
         // Spells
         for (SpellType s : SpellType.values()) {
             TDConfig.SpellSection sec = new TDConfig.SpellSection();
             sec.price = s.getDefaultPrice();
+            sec.tier = s.getDefaultTier();
             c.spells.put(s.name(), sec);
         }
         // Weapons
         for (WeaponShopItem w : WeaponShopItem.getAll()) {
             c.weapons.put(w.name(), w.defaultPrice());
+            c.weaponTiers.put(w.name(), w.getDefaultTier());
         }
         // Walls
         for (WallShopItem w : WallShopItem.getAll()) {
             c.walls.put(w.name(), w.defaultPrice());
+            c.wallTiers.put(w.name(), w.getDefaultTier());
         }
         return c;
     }
@@ -209,6 +219,31 @@ public class ConfigManager {
         for (WallShopItem w : WallShopItem.getAll()) {
             c.walls.putIfAbsent(w.name(), w.defaultPrice());
         }
+        // Backfill tier defaults for entries that existed before the tier field was added
+        for (SpawnerType s : SpawnerType.values()) {
+            TDConfig.SpawnerSection sec = c.spawners.get(s.name());
+            if (sec != null && sec.tier == 0) sec.tier = s.getDefaultTier();
+        }
+        for (TowerType t : TowerType.values()) {
+            TDConfig.TowerSection sec = c.towers.get(t.name());
+            if (sec != null && sec.tier == 0) sec.tier = t.getDefaultTier();
+        }
+        for (IncomeGeneratorType g : IncomeGeneratorType.values()) {
+            TDConfig.GeneratorSection sec = c.generators.get(g.name());
+            if (sec != null && sec.tier == 0) sec.tier = g.getDefaultTier();
+        }
+        for (SpellType s : SpellType.values()) {
+            TDConfig.SpellSection sec = c.spells.get(s.name());
+            if (sec != null && sec.tier == 0) sec.tier = s.getDefaultTier();
+        }
+        if (c.weaponTiers == null) c.weaponTiers = new java.util.HashMap<>();
+        for (WeaponShopItem w : WeaponShopItem.getAll()) {
+            c.weaponTiers.putIfAbsent(w.name(), w.getDefaultTier());
+        }
+        if (c.wallTiers == null) c.wallTiers = new java.util.HashMap<>();
+        for (WallShopItem w : WallShopItem.getAll()) {
+            c.wallTiers.putIfAbsent(w.name(), w.getDefaultTier());
+        }
         if (c.upgrades == null) c.upgrades = new TDConfig.UpgradesSection();
         if (c.spellEffects == null) c.spellEffects = new TDConfig.SpellsEffectSection();
         if (c.towerEffects == null) c.towerEffects = new TDConfig.TowerEffectSection();
@@ -232,6 +267,8 @@ public class ConfigManager {
         if (patch.spells != null && !patch.spells.isEmpty()) result.spells.putAll(patch.spells);
         if (patch.weapons != null && !patch.weapons.isEmpty()) result.weapons.putAll(patch.weapons);
         if (patch.walls != null && !patch.walls.isEmpty()) result.walls.putAll(patch.walls);
+        if (patch.weaponTiers != null && !patch.weaponTiers.isEmpty()) result.weaponTiers.putAll(patch.weaponTiers);
+        if (patch.wallTiers != null && !patch.wallTiers.isEmpty()) result.wallTiers.putAll(patch.wallTiers);
         if (patch.upgrades != null) result.upgrades = patch.upgrades;
         if (patch.spellEffects != null) result.spellEffects = patch.spellEffects;
         if (patch.towerEffects != null) result.towerEffects = patch.towerEffects;
@@ -467,6 +504,16 @@ public class ConfigManager {
         }
     }
 
+    public int getSpawnerTier(SpawnerType type) {
+        lock.readLock().lock();
+        try {
+            TDConfig.SpawnerSection s = config.spawners.get(type.name());
+            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     // ─── Towers ───
     public int getTowerPower(TowerType type) {
         lock.readLock().lock();
@@ -508,6 +555,16 @@ public class ConfigManager {
         }
     }
 
+    public int getTowerTier(TowerType type) {
+        lock.readLock().lock();
+        try {
+            TDConfig.TowerSection s = config.towers.get(type.name());
+            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     // ─── Generators ───
     public int getGeneratorPrice(IncomeGeneratorType type) {
         lock.readLock().lock();
@@ -539,12 +596,32 @@ public class ConfigManager {
         }
     }
 
+    public int getGeneratorTier(IncomeGeneratorType type) {
+        lock.readLock().lock();
+        try {
+            TDConfig.GeneratorSection s = config.generators.get(type.name());
+            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     // ─── Spells ───
     public int getSpellPrice(SpellType type) {
         lock.readLock().lock();
         try {
             TDConfig.SpellSection s = config.spells.get(type.name());
             return s != null ? s.price : type.getDefaultPrice();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public int getSpellTier(SpellType type) {
+        lock.readLock().lock();
+        try {
+            TDConfig.SpellSection s = config.spells.get(type.name());
+            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
         } finally {
             lock.readLock().unlock();
         }
@@ -561,12 +638,32 @@ public class ConfigManager {
         }
     }
 
+    public int getWeaponTier(WeaponShopItem item) {
+        lock.readLock().lock();
+        try {
+            Integer t = config.weaponTiers.get(item.name());
+            return (t != null && t > 0) ? t : item.getDefaultTier();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     // ─── Walls ───
     public int getWallPrice(String name) {
         lock.readLock().lock();
         try {
             Integer p = config.walls.get(name);
             return p != null ? p : 3;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public int getWallTier(WallShopItem item) {
+        lock.readLock().lock();
+        try {
+            Integer t = config.wallTiers.get(item.name());
+            return (t != null && t > 0) ? t : item.getDefaultTier();
         } finally {
             lock.readLock().unlock();
         }

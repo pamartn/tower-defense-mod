@@ -32,12 +32,16 @@ public enum SpellType {
     public Item getItem() { return item; }
     public String getDescription() { return description; }
 
-    public int getTier() {
+    public int getDefaultTier() {
         return switch (this) {
             case LIGHTNING -> 1;
             case FREEZE_BOMB, FIREBALL -> 2;
             case HEAL_NEXUS, SHIELD -> 3;
         };
+    }
+
+    public int getTier() {
+        return ConfigManager.getInstance().getSpellTier(this);
     }
 
     public static List<SpellType> getAll() {

@@ -104,6 +104,12 @@ public class TierManager {
         return true;
     }
 
+    public void forceSetTier(int teamId, int tier) {
+        currentTier.put(teamId, tier);
+        pendingUnlockTier.remove(teamId);
+        unlockTicksRemaining.remove(teamId);
+    }
+
     public void tick() {
         var gm = TowerDefenseMod.getInstance().getGameManager();
         if (gm == null || gm.getTeam1() == null || gm.getTeam2() == null) return;

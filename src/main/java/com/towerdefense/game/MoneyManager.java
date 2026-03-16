@@ -57,4 +57,8 @@ public class MoneyManager {
     public void resetWithAmount(int amount) {
         money = amount;
     }
+
+    public void setMoney(int amount) {
+        money = amount;
+    }
 }

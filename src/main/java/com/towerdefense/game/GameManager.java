@@ -69,6 +69,7 @@ public class GameManager {
     private int playingPhaseTicks;
 
     private boolean soloMode = false;
+    private boolean testMode = false;
     private SoloAI soloAI;
     private Villager aiVillagerEntity;
 
@@ -128,6 +129,18 @@ public class GameManager {
         host.sendSystemMessage(Component.literal("Solo mode! You vs AI. Good luck!")
                 .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD));
         TowerDefenseMod.LOGGER.info("Tower Defense solo mode started by {}", host.getName().getString());
+    }
+
+    /** Start test mode: one player controls both sides. Crossing the midline auto-switches teams. */
+    public void startTestMode(ServerPlayer host) {
+        if (state != GameState.LOBBY || lobby == null) return;
+        if (!lobby.getHostUUID().equals(host.getUUID())) return;
+
+        testMode = true;
+        transitionLobbyToPrep();
+        host.sendSystemMessage(Component.literal("Test mode! Cross the midline to switch teams.")
+                .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
+        TowerDefenseMod.LOGGER.info("Tower Defense test mode started by {}", host.getName().getString());
     }
 
     /** Add player to team. In LOBBY, host must use /td start to begin. */
@@ -240,8 +253,12 @@ public class GameManager {
             spawnAIVillager();
         }
 
+        if (testMode) {
+            team2.getMoneyManager().reset();
+        }
+
         lobby = null;
-        TowerDefenseMod.LOGGER.info("Tower Defense prep phase started" + (soloMode ? " (solo mode)" : ""));
+        TowerDefenseMod.LOGGER.info("Tower Defense prep phase started" + (soloMode ? " (solo mode)" : "") + (testMode ? " (test mode)" : ""));
     }
 
     private void spawnAIVillager() {
@@ -265,7 +282,7 @@ public class GameManager {
             playerKit.resetPlayer(ps.getPlayer());
         }
 
-        if (team.getMemberCount() == 0 && state != GameState.LOBBY) {
+        if (team.getMemberCount() == 0 && state != GameState.LOBBY && !testMode) {
             TeamState winner = team == team1 ? team2 : team1;
             TeamState loser = team;
             triggerVictory(winner, loser);
@@ -330,6 +347,7 @@ public class GameManager {
         }
         soloAI = null;
         soloMode = false;
+        testMode = false;
 
         state = GameState.IDLE;
         sendAllPlayers(Component.literal("Game stopped.").withStyle(ChatFormatting.RED));
@@ -348,8 +366,14 @@ public class GameManager {
         if (state == GameState.IDLE || state == GameState.LOBBY) return;
         if (world == null) return;
 
-        for (PlayerState ps : playerStates.values()) {
-            if (ps.getPlayer().isAlive()) arenaManager.confinePlayer(ps.getPlayer(), ps.getSide());
+        for (PlayerState ps : new ArrayList<>(playerStates.values())) {
+            if (ps.getPlayer().isAlive()) {
+                if (testMode) {
+                    autoSwitchTeamOnBoundary(ps.getPlayer());
+                } else {
+                    arenaManager.confinePlayer(ps.getPlayer(), ps.getSide());
+                }
+            }
         }
         if (soloMode && aiVillagerEntity != null && aiVillagerEntity.isAlive()) {
             arenaManager.confineEntity(aiVillagerEntity, 2);
@@ -556,6 +580,7 @@ public class GameManager {
 
     private boolean checkDisconnect() {
         if (team1 == null || team2 == null) return false;
+        if (testMode) return false;
         boolean team1Gone = team1.getMemberCount() == 0 || !hasAnyAlivePlayer(team1);
         boolean team2Gone = soloMode ? false : (team2.getMemberCount() == 0 || !hasAnyAlivePlayer(team2));
 
@@ -696,6 +721,60 @@ public class GameManager {
 
     public PlayerState getPlayerState(ServerPlayer player) {
         return playerStates.get(player.getUUID());
+    }
+
+    /** In test mode: if the player is in the wrong half, switch their team to match their position. */
+    private void autoSwitchTeamOnBoundary(ServerPlayer player) {
+        BlockPos pos = player.blockPosition();
+        PlayerState ps = playerStates.get(player.getUUID());
+        if (ps == null) return;
+
+        if (!GameConfig.isInsideArena(pos)) {
+            // Outside arena: teleport to current side's spawn
+            BlockPos spawn = ps.getSide() == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
+            player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+            return;
+        }
+
+        int relZ = pos.getZ() - GameConfig.arenaOrigin.getZ();
+        int positionSide = relZ < GameConfig.getMidlineZ() ? 1 : 2;
+        if (positionSide == ps.getSide()) return;
+
+        // Player crossed the midline — switch teams
+        (ps.getSide() == 1 ? team1 : team2).removeMember(player.getUUID());
+        TeamState newTeam = positionSide == 1 ? team1 : team2;
+        newTeam.addMember(player.getUUID());
+        playerStates.put(player.getUUID(), new PlayerState(player, newTeam));
+        HudManager.sendActionBar(player, Component.literal("\u21c4 Team " + positionSide)
+                .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
+    }
+
+    /**
+     * Toggle the player between team 1 and team 2 for test/debug purposes.
+     * Does not reset money. Returns the new side (1 or 2), or -1 on failure.
+     */
+    public int switchTestSide(ServerPlayer player) {
+        if (team1 == null || team2 == null) return -1;
+
+        PlayerState current = getPlayerState(player);
+        int currentSide = current != null ? current.getSide() : 0;
+        int newSide = currentSide == 2 ? 1 : 2;
+
+        // Remove from current team
+        if (current != null) {
+            (currentSide == 1 ? team1 : team2).removeMember(player.getUUID());
+        }
+
+        // Add to new team and register new PlayerState
+        TeamState newTeam = newSide == 1 ? team1 : team2;
+        newTeam.addMember(player.getUUID());
+        playerStates.put(player.getUUID(), new PlayerState(player, newTeam));
+
+        // Teleport to new side's spawn
+        BlockPos spawn = newSide == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
+        player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+
+        return newSide;
     }
 
     public TeamState getTeamForUUID(UUID uuid) {

@@ -41,6 +41,9 @@ run/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
 
+# Deployment config (machine-specific)
+.deploy.conf
+
 # OS
 .DS_Store
 Thumbs.db

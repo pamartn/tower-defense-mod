@@ -18,6 +18,8 @@ public class TDConfig {
     public Map<String, SpellSection> spells = new HashMap<>();
     public Map<String, Integer> weapons = new HashMap<>();
     public Map<String, Integer> walls = new HashMap<>();
+    public Map<String, Integer> weaponTiers = new HashMap<>();
+    public Map<String, Integer> wallTiers = new HashMap<>();
     public UpgradesSection upgrades = new UpgradesSection();
     public SpellsEffectSection spellEffects = new SpellsEffectSection();
     public TowerEffectSection towerEffects = new TowerEffectSection();
@@ -58,6 +60,7 @@ public class TDConfig {
     public static class SpawnerSection {
         public int price;
         public int spawnIntervalTicks;
+        public int tier;
     }
 
     public static class TowerSection {
@@ -65,16 +68,19 @@ public class TDConfig {
         public double range;
         public int fireRateInTicks;
         public int price;
+        public int tier;
     }
 
     public static class GeneratorSection {
         public int price;
         public int incomeAmount;
         public int incomeIntervalTicks;
+        public int tier;
     }
 
     public static class SpellSection {
         public int price;
+        public int tier;
     }
 
     public static class UpgradesSection {

@@ -43,12 +43,16 @@ public enum IncomeGeneratorType {
         return java.util.Arrays.stream(values()).sorted((a, b) -> Integer.compare(a.getPrice(), b.getPrice())).toList();
     }
 
-    public int getTier() {
+    public int getDefaultTier() {
         return switch (this) {
             case BASIC -> 1;
             case ADVANCED -> 2;
             case ELITE -> 3;
         };
+    }
+
+    public int getTier() {
+        return ConfigManager.getInstance().getGeneratorTier(this);
     }
 
     public static IncomeGeneratorType findByBlock(Block block) {

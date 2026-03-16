@@ -52,6 +52,17 @@ public class TowerDefenseCommand {
                         .then(Commands.literal("stop").executes(this::stop))
                         .then(Commands.literal("status").executes(this::status))
                         .then(Commands.literal("shop").executes(this::shop))
+                        .then(Commands.literal("test")
+                                .requires(source -> source.hasPermission(2))
+                                .executes(this::testMode))
+                        .then(Commands.literal("set")
+                                .requires(source -> source.hasPermission(2))
+                                .then(Commands.literal("money")
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(0))
+                                                .executes(this::setMoney)))
+                                .then(Commands.literal("tier")
+                                        .then(Commands.argument("tier", IntegerArgumentType.integer(1, 3))
+                                                .executes(this::setTier))))
         );
     }
 
@@ -325,6 +336,66 @@ public class TowerDefenseCommand {
             caller.sendSystemMessage(Component.literal("  Team 1: " + t1 + " | Team 2: " + t2)
                     .withStyle(ChatFormatting.GRAY));
         }
+        return 1;
+    }
+
+    private int testMode(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer caller = ctx.getSource().getPlayer();
+        if (caller == null) {
+            ctx.getSource().sendFailure(Component.literal("Player-only command"));
+            return 0;
+        }
+        if (!gameManager.isLobby()) {
+            ctx.getSource().sendFailure(Component.literal("Test mode can only be started from the lobby (/td start first, then /td test)."));
+            return 0;
+        }
+        if (!gameManager.isHost(caller.getUUID())) {
+            ctx.getSource().sendFailure(Component.literal("Only the lobby host can start test mode."));
+            return 0;
+        }
+        gameManager.startTestMode(caller);
+        return 1;
+    }
+
+    private int setMoney(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer caller = ctx.getSource().getPlayer();
+        if (caller == null) {
+            ctx.getSource().sendFailure(Component.literal("Player-only command"));
+            return 0;
+        }
+        if (!gameManager.isActive()) {
+            ctx.getSource().sendFailure(Component.literal("No game running."));
+            return 0;
+        }
+        PlayerState ps = gameManager.getPlayerState(caller);
+        if (ps == null) {
+            ctx.getSource().sendFailure(Component.literal("You are not part of the current game."));
+            return 0;
+        }
+        int amount = IntegerArgumentType.getInteger(ctx, "amount");
+        ps.getMoneyManager().setMoney(amount);
+        caller.sendSystemMessage(Component.literal("Money set to $" + amount).withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    private int setTier(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer caller = ctx.getSource().getPlayer();
+        if (caller == null) {
+            ctx.getSource().sendFailure(Component.literal("Player-only command"));
+            return 0;
+        }
+        if (!gameManager.isActive()) {
+            ctx.getSource().sendFailure(Component.literal("No game running."));
+            return 0;
+        }
+        PlayerState ps = gameManager.getPlayerState(caller);
+        if (ps == null) {
+            ctx.getSource().sendFailure(Component.literal("You are not part of the current game."));
+            return 0;
+        }
+        int tier = IntegerArgumentType.getInteger(ctx, "tier");
+        gameManager.getTierManager().forceSetTier(ps.getSide(), tier);
+        caller.sendSystemMessage(Component.literal("Tier set to " + tier + " for your team.").withStyle(ChatFormatting.GREEN));
         return 1;
     }
 

@@ -121,7 +121,7 @@ public class ShopScreenHandler extends AbstractContainerMenu {
         if (moneyManager == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
 
-        var recipes = towerRegistry.getRecipes();
+        var recipes = towerRegistry.getRecipesSortedByPrice();
         if (towerIndex < 0 || towerIndex >= recipes.size()) return false;
 
         GameManager gm = TowerDefenseMod.getInstance().getGameManager();

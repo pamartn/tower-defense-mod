@@ -46,9 +46,9 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
     private final List<Button> weaponButtons = new ArrayList<>();
     private final List<UpgradeBtn> spawnerUpgradeButtons = new ArrayList<>();
     private final List<UpgradeBtn> towerUpgradeButtons = new ArrayList<>();
-    private final List<TierBtn> tierButtons = new ArrayList<>();
 
-    private record TierBtn(Button button, int targetTier) {}
+    private Button nextTierButton = null;
+    private int nextTierTarget = 2;
 
     private int centerHeight;
     private int panelTopY;
@@ -85,7 +85,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         weaponButtons.clear();
         spawnerUpgradeButtons.clear();
         towerUpgradeButtons.clear();
-        tierButtons.clear();
+        nextTierButton = null;
 
         panelTopY = (this.height - centerHeight) / 2;
         int allLeft = (this.width - TOTAL_W) / 2;
@@ -156,19 +156,15 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         // ─── Right panel: Tiers ───
         int rx = rightPanelX + 6;
         int ry = panelTopY + LABEL_H + 8;
-        int tier2Cost = ConfigManager.getInstance().getTier2Cost();
-        int tier3Cost = ConfigManager.getInstance().getTier3Cost();
-
-        Button t2 = Button.builder(Component.literal("Tier 2 $" + tier2Cost), b -> ShopClientNetworking.sendTierBuyPacket(2))
-                .bounds(rx, ry, RIGHT_W - 12, ROW_H - 2).build();
-        this.addRenderableWidget(t2);
-        tierButtons.add(new TierBtn(t2, 2));
-        ry += ROW_H + 8;
-
-        Button t3 = Button.builder(Component.literal("Tier 3 $" + tier3Cost), b -> ShopClientNetworking.sendTierBuyPacket(3))
-                .bounds(rx, ry, RIGHT_W - 12, ROW_H - 2).build();
-        this.addRenderableWidget(t3);
-        tierButtons.add(new TierBtn(t3, 3));
+        int currentTierInit = Math.max(1, menu.getTierCurrent());
+        if (currentTierInit < 3) {
+            nextTierTarget = currentTierInit + 1;
+            int cost = nextTierTarget == 2 ? ConfigManager.getInstance().getTier2Cost() : ConfigManager.getInstance().getTier3Cost();
+            nextTierButton = Button.builder(Component.literal("Tier " + nextTierTarget + " $" + cost),
+                            b -> ShopClientNetworking.sendTierBuyPacket(nextTierTarget))
+                    .bounds(rx, ry, RIGHT_W - 12, ROW_H - 2).build();
+            this.addRenderableWidget(nextTierButton);
+        }
 
         updateButtonStates();
     }
@@ -234,22 +230,22 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         int idx = 0;
         for (TowerRecipe r : TowerDefenseMod.getInstance().getTowerRegistry().getRecipesSortedByPrice()) {
             boolean tierOk = r.type().getTier() <= tier;
-            setTriple(idx, tierOk && money >= r.price());
+            setTriple(idx, tierOk, money >= r.price(), r.type().getTier());
             idx += 3;
         }
         for (WallShopItem w : WallShopItem.getAllSortedByPrice()) {
             boolean tierOk = w.getTier() <= tier;
-            setTriple(idx, tierOk && money >= w.price());
+            setTriple(idx, tierOk, money >= w.price(), w.getTier());
             idx += 3;
         }
         for (SpawnerType s : SpawnerType.getAllSortedByPrice()) {
             boolean tierOk = s.getTier() <= tier;
-            setTriple(idx, tierOk && money >= s.getPrice());
+            setTriple(idx, tierOk, money >= s.getPrice(), s.getTier());
             idx += 3;
         }
         for (IncomeGeneratorType g : IncomeGeneratorType.getAllSortedByPrice()) {
             boolean tierOk = g.getTier() <= tier;
-            setTriple(idx, tierOk && money >= g.getPrice());
+            setTriple(idx, tierOk, money >= g.getPrice(), g.getTier());
             idx += 3;
         }
 
@@ -289,18 +285,34 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             ub.button().setMessage(Component.literal("UP Lv" + (level + 1) + " $" + cost));
         }
 
-        // Tier buttons: Tier 2 only if tier 1 and no pending; Tier 3 only if tier 2 and no pending
-        for (TierBtn tb : tierButtons) {
-            int cost = tb.targetTier() == 2 ? ConfigManager.getInstance().getTier2Cost() : ConfigManager.getInstance().getTier3Cost();
-            boolean canUnlock = pending == 0 && tier < tb.targetTier() && tier == tb.targetTier() - 1 && money >= cost;
-            tb.button().active = canUnlock;
+        // Single next-tier button: show only when no pending and tier < 3
+        if (nextTierButton != null) {
+            if (tier >= 3 || pending > 0) {
+                nextTierButton.visible = false;
+            } else {
+                int nextTier = tier + 1;
+                nextTierTarget = nextTier;
+                int cost = nextTier == 2 ? ConfigManager.getInstance().getTier2Cost() : ConfigManager.getInstance().getTier3Cost();
+                nextTierButton.visible = true;
+                nextTierButton.active = money >= cost;
+                nextTierButton.setMessage(Component.literal("Tier " + nextTier + " $" + cost));
+            }
         }
     }
 
-    private void setTriple(int startIdx, boolean active) {
+    private void setTriple(int startIdx, boolean tierOk, boolean affordable, int requiredTier) {
+        boolean active = tierOk && affordable;
         if (startIdx < shopButtons.size()) shopButtons.get(startIdx).active = active;
-        if (startIdx + 1 < shopButtons.size()) shopButtons.get(startIdx + 1).active = active;
-        if (startIdx + 2 < shopButtons.size()) shopButtons.get(startIdx + 2).active = active;
+        if (startIdx + 1 < shopButtons.size()) {
+            Button b = shopButtons.get(startIdx + 1);
+            b.active = active;
+            b.setMessage(Component.literal(tierOk ? "x5" : "T" + requiredTier));
+        }
+        if (startIdx + 2 < shopButtons.size()) {
+            Button b = shopButtons.get(startIdx + 2);
+            b.active = active;
+            b.setMessage(Component.literal(tierOk ? "MAX" : "T" + requiredTier));
+        }
     }
 
     // ─── Buy actions ───
@@ -402,12 +414,22 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         int pendingTier = menu.getTierPending();
         int ticksLeft = menu.getTierTicksRemaining();
         graphics.drawCenteredString(this.font, "TIERS", rightPanelX + RIGHT_W / 2, panelTopY + 3, 0xFFAA55);
-        int ry = panelTopY + LABEL_H + 4;
-        graphics.drawString(this.font, "Tier 1: OK", rightPanelX + 6, ry, 0x00FF00);
-        ry += ROW_H + 4;
-        if (pendingTier > 0 && ticksLeft > 0) {
+        int ry = panelTopY + LABEL_H + ROW_H + 12;
+        graphics.drawString(this.font, "T1: OK", rightPanelX + 6, ry, 0x00FF00);
+        ry += ROW_H;
+        if (tier >= 2) {
+            graphics.drawString(this.font, "T2: OK", rightPanelX + 6, ry, 0x00FF00);
+            ry += ROW_H;
+        } else if (pendingTier == 2 && ticksLeft > 0) {
             int secs = (ticksLeft + 19) / 20;
-            graphics.drawString(this.font, "Tier " + pendingTier + ": " + secs + "s", rightPanelX + 6, ry, 0xFFAA00);
+            graphics.drawString(this.font, "T2: " + secs + "s...", rightPanelX + 6, ry, 0xFFAA00);
+            ry += ROW_H;
+        }
+        if (tier >= 3) {
+            graphics.drawString(this.font, "T3: OK", rightPanelX + 6, ry, 0x00FF00);
+        } else if (pendingTier == 3 && ticksLeft > 0) {
+            int secs = (ticksLeft + 19) / 20;
+            graphics.drawString(this.font, "T3: " + secs + "s...", rightPanelX + 6, ry, 0xFFAA00);
         }
 
         // ─── Center panel ───

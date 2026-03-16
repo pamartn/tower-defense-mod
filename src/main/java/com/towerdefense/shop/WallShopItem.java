@@ -18,13 +18,17 @@ public record WallShopItem(String name, Block block, int defaultPrice) {
         return ConfigManager.getInstance().getWallPrice(name);
     }
 
-    public int getTier() {
+    public int getDefaultTier() {
         return switch (name) {
             case "Wool Wall" -> 1;
             case "Oak Planks Wall" -> 2;
             case "Cobblestone Wall" -> 3;
             default -> 1;
         };
+    }
+
+    public int getTier() {
+        return ConfigManager.getInstance().getWallTier(this);
     }
 
     public static WallShopItem findByBlock(net.minecraft.world.level.block.Block block) {
