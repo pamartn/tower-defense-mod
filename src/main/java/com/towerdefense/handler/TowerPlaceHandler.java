@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -76,6 +77,12 @@ public class TowerPlaceHandler {
         IncomeGeneratorType genType = IncomeGeneratorType.findByBlock(placedBlock);
         if (genType != null && ps != null) {
             world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            if (world.getBlockState(pos.below()).getBlock() != Blocks.GLOWSTONE) {
+                player.sendSystemMessage(Component.literal("\u26A0 Generators can only be placed on glowstone pads!")
+                        .withStyle(ChatFormatting.RED));
+                player.getInventory().add(new ItemStack(placedBlock.asItem()));
+                return;
+            }
             gameManager.getIncomeGeneratorManager().placeGenerator(serverLevel, pos, genType, ps.getSide());
 
             player.sendSystemMessage(Component.literal("\u2726 " + genType.getName() + " placed!")

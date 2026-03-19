@@ -38,6 +38,7 @@ public class ArenaManager implements ArenaBuilder {
 
         clearVolume(world, origin);
         generateFloor(world, origin);
+        generateGeneratorSpots(world, origin);
         generateInnerWall(world, origin);
         generateStands(world, origin);
         generateTopRing(world, origin);
@@ -78,7 +79,7 @@ public class ArenaManager implements ArenaBuilder {
                 if (z == midZ - 1 || z == midZ) {
                     place(world, p, Blocks.GOLD_BLOCK);
                 } else if (isLight) {
-                    place(world, p, Blocks.GLOWSTONE);
+                    place(world, p, Blocks.SEA_LANTERN);
                 } else if (isCornerAccent) {
                     place(world, p, Blocks.CUT_SANDSTONE);
                 } else if (isBorder) {
@@ -89,6 +90,54 @@ public class ArenaManager implements ArenaBuilder {
             }
         }
 
+    }
+
+    // ──────────────────────────────────────────
+    //  Generator spots (glowstone pads)
+    // ──────────────────────────────────────────
+
+    /**
+     * Places designated glowstone generator pads for each team.
+     * Income generators can only be placed on these spots.
+     * Layout per team:
+     *   - 2 spots near the nexus (safe)
+     *   - 2 spots on the sides of the arena (moderate)
+     *   - 1 spot in the middle of each half (risky, close to midline)
+     */
+    private void generateGeneratorSpots(ServerLevel world, BlockPos origin) {
+        int s = size();
+        int mid = GameConfig.getMidlineZ();
+        int cx = s / 2;
+
+        // Team 1 spots (z = 0..mid-1), nexus at z=2
+        int[][] t1 = {
+            { cx - 4, 4  },   // near nexus left
+            { cx + 4, 4  },   // near nexus right
+            { 4,      s / 8 },  // side left
+            { s - 5,  s / 8 },  // side right
+            { cx,     mid - 5 } // risky center
+        };
+
+        // Team 2 spots (z = mid..s-1), nexus at z=s-3 — mirrored
+        int[][] t2 = {
+            { cx - 4, s - 5  },
+            { cx + 4, s - 5  },
+            { 4,      s - s / 8 - 1 },
+            { s - 5,  s - s / 8 - 1 },
+            { cx,     mid + 4 }
+        };
+
+        for (int[] xz : t1) placeGeneratorPad(world, origin, xz[0], xz[1]);
+        for (int[] xz : t2) placeGeneratorPad(world, origin, xz[0], xz[1]);
+    }
+
+    /** Places a glowstone cross (+) to mark an income generator pad. */
+    private void placeGeneratorPad(ServerLevel world, BlockPos origin, int x, int z) {
+        place(world, origin.offset(x,     0, z    ), Blocks.GLOWSTONE);
+        place(world, origin.offset(x + 1, 0, z    ), Blocks.GLOWSTONE);
+        place(world, origin.offset(x - 1, 0, z    ), Blocks.GLOWSTONE);
+        place(world, origin.offset(x,     0, z + 1), Blocks.GLOWSTONE);
+        place(world, origin.offset(x,     0, z - 1), Blocks.GLOWSTONE);
     }
 
     // ──────────────────────────────────────────

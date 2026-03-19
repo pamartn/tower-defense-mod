@@ -19,6 +19,7 @@ import net.minecraft.world.entity.player.Inventory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
 
@@ -46,6 +47,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
     private final List<Button> weaponButtons = new ArrayList<>();
     private final List<UpgradeBtn> spawnerUpgradeButtons = new ArrayList<>();
     private final List<UpgradeBtn> towerUpgradeButtons = new ArrayList<>();
+    private final List<Map.Entry<SpawnerType, Button>> spawnerTooltipButtons = new ArrayList<>();
 
     private Button nextTierButton = null;
     private int nextTierTarget = 2;
@@ -85,6 +87,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         weaponButtons.clear();
         spawnerUpgradeButtons.clear();
         towerUpgradeButtons.clear();
+        spawnerTooltipButtons.clear();
         nextTierButton = null;
 
         panelTopY = (this.height - centerHeight) / 2;
@@ -191,8 +194,12 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
     private void addSpawnerRow(int x, int y, SpawnerType s, int idx) {
         int baseX = x + NAME_W + GAP + X5_W + GAP + MAX_W + GAP;
         int mobOrd = s.getMobType().ordinal();
+        int beforeSize = shopButtons.size();
         addShopRow(x, y, s.getName() + " $" + s.getPrice(),
                 btn -> buySpawner(idx, 1), btn -> buySpawner(idx, 5), btn -> buySpawnerMax(idx));
+        if (spawnerSpecialTooltip(s) != null) {
+            spawnerTooltipButtons.add(Map.entry(s, shopButtons.get(beforeSize)));
+        }
         String[] labels = {"+HP", "+SPD", "+DMG"};
         for (int u = 0; u < 3; u++) {
             final int upgradeIdx = mobOrd * 3 + u;
@@ -201,6 +208,28 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             this.addRenderableWidget(ub);
             spawnerUpgradeButtons.add(new UpgradeBtn(ub, upgradeIdx));
         }
+    }
+
+    private List<Component> spawnerSpecialTooltip(SpawnerType s) {
+        return switch (s) {
+            case CREEPER_SPAWNER -> List.of(
+                    Component.literal("Special: Random Explosion").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Randomly explodes while walking,").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("destroying nearby enemy buildings.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Dies on explosion.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case RAVAGER_SPAWNER -> List.of(
+                    Component.literal("Special: Block Breach").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Destroys blocks ahead when jumping,").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("breaching walls and towers.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case WITCH_SPAWNER -> List.of(
+                    Component.literal("Special: Allied Heal").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Periodically heals nearby").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("allied mobs.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            default -> null;
+        };
     }
 
     private void addShopRow(int x, int y, String label, Button.OnPress buy1, Button.OnPress buy5, Button.OnPress buyMax) {
@@ -479,6 +508,15 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             graphics.drawString(this.font, "+$" + g.getIncomeAmount() + " / " + (g.getIncomeIntervalTicks() / 20) + "s",
                     statsX, y + 3, 0xAAAAAA);
             y += ROW_H;
+        }
+
+        // Spawner special ability tooltips
+        for (var entry : spawnerTooltipButtons) {
+            if (entry.getValue().isHovered()) {
+                List<Component> lines = spawnerSpecialTooltip(entry.getKey());
+                if (lines != null) graphics.renderTooltip(this.font, lines, java.util.Optional.empty(), mouseX, mouseY);
+                break;
+            }
         }
 
         this.renderTooltip(graphics, mouseX, mouseY);

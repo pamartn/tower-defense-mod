@@ -52,8 +52,8 @@ public enum SpawnerType implements Purchasable {
 
     public int getDefaultTier() {
         return switch (this) {
-            case BABY_ZOMBIE_SPAWNER, ZOMBIE_SPAWNER, SKELETON_SPAWNER, SPIDER_SPAWNER -> 1;
-            case CREEPER_SPAWNER, ENDERMAN_SPAWNER, WITCH_SPAWNER, RAVAGER_SPAWNER -> 2;
+            case ZOMBIE_SPAWNER, SKELETON_SPAWNER, SPIDER_SPAWNER -> 1;
+            case BABY_ZOMBIE_SPAWNER, CREEPER_SPAWNER, ENDERMAN_SPAWNER, WITCH_SPAWNER, RAVAGER_SPAWNER -> 2;
             case IRON_GOLEM_SPAWNER, BOSS_SPAWNER -> 3;
         };
     }

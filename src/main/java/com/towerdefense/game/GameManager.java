@@ -209,6 +209,8 @@ public class GameManager implements StructureEventSink, IGameSession {
     private void transitionLobbyToPrep() {
         arenaBuilder.generate(world, GameConfig.arenaOrigin);
         world.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, world.getServer());
+        world.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(false, world.getServer());
+        world.setDayTime(18000L);
         killAllNonPlayerEntities();
         spectatorManager.spawnSpectators(world, GameConfig.arenaOrigin);
 
@@ -350,6 +352,7 @@ public class GameManager implements StructureEventSink, IGameSession {
             if (team1 != null) team1.getNexusManager().cleanup();
             if (team2 != null) team2.getNexusManager().cleanup();
             world.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(true, world.getServer());
+            world.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(true, world.getServer());
         }
 
         for (PlayerState ps : playerStates.values()) {

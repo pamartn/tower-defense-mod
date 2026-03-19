@@ -230,6 +230,11 @@ public class ConfigManager {
     private void removeDeprecatedKeys(TDConfig c) {
         if (c.mobs != null) c.mobs.remove("PHANTOM");
         if (c.spawners != null) c.spawners.remove("PHANTOM_SPAWNER");
+        // BABY_ZOMBIE_SPAWNER promoted from tier 1 to tier 2
+        if (c.spawners != null) {
+            TDConfig.SpawnerSection bz = c.spawners.get("BABY_ZOMBIE_SPAWNER");
+            if (bz != null && bz.tier == 1) bz.tier = 2;
+        }
     }
 
     private TDConfig merge(TDConfig base, TDConfig patch) {

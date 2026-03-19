@@ -3,6 +3,7 @@ package com.towerdefense.wave;
 import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.config.ConfigManager;
 import com.towerdefense.game.GameConfig;
+import com.towerdefense.mob.TDCreeper;
 import com.towerdefense.mob.TDEnderman;
 import com.towerdefense.mob.TDMob;
 import com.towerdefense.mob.TDRavager;
@@ -196,6 +197,7 @@ public class SpawnerManager {
             case WITCH    -> new TDWitch(mob, spawner.teamId());
             case ENDERMAN -> new TDEnderman(mob, spawner.teamId());
             case RAVAGER  -> new TDRavager(mob, spawner.teamId());
+            case CREEPER  -> new TDCreeper(mob, spawner.teamId());
             default       -> {} // no special behavior
         }
     }

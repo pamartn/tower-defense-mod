@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class WallBlockManager {
 
-    private static final int WALL_TOWER_HEIGHT = 4;
+    private static final int WALL_TOWER_HEIGHT = 2;
 
     private final Map<BlockPos, WallBlockInfo> blocks = new HashMap<>();
 

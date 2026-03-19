@@ -1,6 +1,7 @@
 plugins {
     id 'fabric-loom' version "${loom_version}"
     id 'maven-publish'
+    id 'jacoco'
 }
 
 version = project.mod_version
@@ -24,6 +25,10 @@ sourceSets {
         compileClasspath += main.compileClasspath
         runtimeClasspath += main.runtimeClasspath
     }
+}
+
+jacoco {
+    toolVersion = "0.8.12"
 }
 
 loom {
@@ -70,6 +75,37 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    jacoco {
+        destinationFile = file("${buildDir}/jacoco/unit.exec")
+        // Restrict instrumentation to our code only — avoids JaCoCo choking on JDK internals
+        // compiled with a newer class-file version than JaCoCo supports.
+        includes = ['com/towerdefense/**']
+    }
+}
+
+// Combined report: merges any .exec files present (unit, gametest, or both)
+tasks.register('coverageReport', JacocoReport) {
+    group = 'verification'
+    description = 'Generates combined JaCoCo coverage report (unit + integration tests).'
+    dependsOn test
+
+    executionData fileTree("${buildDir}/jacoco").include("*.exec")
+    sourceDirectories.from files(sourceSets.main.allSource.srcDirs)
+    classDirectories.from files(sourceSets.main.output)
+
+    reports {
+        xml.required  = true
+        html.required = true
+        html.outputLocation = file("${buildDir}/reports/jacoco/combined")
+    }
+}
+
+// Run unit tests → coverage report in one command
+tasks.register('unitTestCoverage') {
+    group = 'verification'
+    description = 'Runs unit tests and generates coverage report.'
+    dependsOn test, coverageReport
+    tasks.coverageReport.mustRunAfter test
 }
 
 processResources {

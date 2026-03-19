@@ -115,13 +115,7 @@ public class TowerManager {
 
     private List<BlockPos> buildBasicStructure(ServerLevel world, BlockPos base) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                world.setBlock(p, Blocks.COBBLESTONE.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, Blocks.COBBLESTONE, positions);
         placeAndTrack(world, base.above(1), Blocks.COBBLESTONE, positions);
         placeAndTrack(world, base.above(2), Blocks.COBBLESTONE, positions);
         placeAndTrack(world, base.above(3), Blocks.TORCH, positions);
@@ -130,72 +124,34 @@ public class TowerManager {
 
     private List<BlockPos> buildArcherStructure(ServerLevel world, BlockPos base) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                world.setBlock(p, Blocks.OAK_PLANKS.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, Blocks.OAK_PLANKS, positions);
         placeAndTrack(world, base.above(1), Blocks.OAK_PLANKS, positions);
         placeAndTrack(world, base.above(2), Blocks.OAK_FENCE, positions);
         placeAndTrack(world, base.above(3), Blocks.CARVED_PUMPKIN, positions);
-        placeAndTrack(world, base.offset(-1, 1, -1), Blocks.OAK_FENCE, positions);
-        placeAndTrack(world, base.offset(1, 1, -1), Blocks.OAK_FENCE, positions);
-        placeAndTrack(world, base.offset(-1, 1, 1), Blocks.OAK_FENCE, positions);
-        placeAndTrack(world, base.offset(1, 1, 1), Blocks.OAK_FENCE, positions);
         return positions;
     }
 
     private List<BlockPos> buildCannonStructure(ServerLevel world, BlockPos base) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                world.setBlock(p, Blocks.STONE_BRICKS.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, Blocks.STONE_BRICKS, positions);
         placeAndTrack(world, base.above(1), Blocks.STONE_BRICKS, positions);
         placeAndTrack(world, base.above(2), Blocks.IRON_BLOCK, positions);
         placeAndTrack(world, base.above(3), Blocks.DISPENSER, positions);
-        placeAndTrack(world, base.offset(-1, 1, 0), Blocks.STONE_BRICK_WALL, positions);
-        placeAndTrack(world, base.offset(1, 1, 0), Blocks.STONE_BRICK_WALL, positions);
-        placeAndTrack(world, base.offset(0, 1, -1), Blocks.STONE_BRICK_WALL, positions);
-        placeAndTrack(world, base.offset(0, 1, 1), Blocks.STONE_BRICK_WALL, positions);
         return positions;
     }
 
     private List<BlockPos> buildLaserStructure(ServerLevel world, BlockPos base) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                boolean corner = (x != 0 && z != 0);
-                Block block = corner ? Blocks.OBSIDIAN : Blocks.DIAMOND_BLOCK;
-                world.setBlock(p, block.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, Blocks.DIAMOND_BLOCK, positions);
         placeAndTrack(world, base.above(1), Blocks.DIAMOND_BLOCK, positions);
         placeAndTrack(world, base.above(2), Blocks.END_ROD, positions);
         placeAndTrack(world, base.above(3), Blocks.BEACON, positions);
-        placeAndTrack(world, base.offset(-1, 2, 0), Blocks.END_ROD, positions);
-        placeAndTrack(world, base.offset(1, 2, 0), Blocks.END_ROD, positions);
-        placeAndTrack(world, base.offset(0, 2, -1), Blocks.END_ROD, positions);
-        placeAndTrack(world, base.offset(0, 2, 1), Blocks.END_ROD, positions);
         return positions;
     }
 
     private List<BlockPos> buildFireStructure(ServerLevel world, BlockPos base) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                world.setBlock(p, Blocks.NETHERRACK.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, Blocks.NETHERRACK, positions);
         placeAndTrack(world, base.above(1), Blocks.NETHER_BRICKS, positions);
         placeAndTrack(world, base.above(2), Blocks.MAGMA_BLOCK, positions);
         placeAndTrack(world, base.above(3), Blocks.SOUL_LANTERN, positions);
@@ -204,13 +160,7 @@ public class TowerManager {
 
     private List<BlockPos> buildSimpleStructure(ServerLevel world, BlockPos base, Block baseBlock, Block mid, Block top) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                world.setBlock(p, baseBlock.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, baseBlock, positions);
         placeAndTrack(world, base.above(1), baseBlock, positions);
         placeAndTrack(world, base.above(2), mid, positions);
         placeAndTrack(world, base.above(3), top, positions);
@@ -219,13 +169,7 @@ public class TowerManager {
 
     private List<BlockPos> buildSlowStructure(ServerLevel world, BlockPos base) {
         List<BlockPos> positions = new ArrayList<>();
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos p = base.offset(x, 0, z);
-                world.setBlock(p, Blocks.BLUE_ICE.defaultBlockState(), Block.UPDATE_ALL);
-                positions.add(p);
-            }
-        }
+        placeAndTrack(world, base, Blocks.BLUE_ICE, positions);
         placeAndTrack(world, base.above(1), Blocks.PACKED_ICE, positions);
         placeAndTrack(world, base.above(2), Blocks.SNOW_BLOCK, positions);
         placeAndTrack(world, base.above(3), Blocks.BLUE_STAINED_GLASS, positions);
