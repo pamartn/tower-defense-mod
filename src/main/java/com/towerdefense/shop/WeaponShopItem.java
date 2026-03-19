@@ -4,9 +4,10 @@ import com.towerdefense.config.ConfigManager;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
+import com.towerdefense.shop.Purchasable;
 import java.util.List;
 
-public record WeaponShopItem(String name, Item item, int defaultPrice, String description, boolean enchanted) {
+public record WeaponShopItem(String name, Item item, int defaultPrice, String description, boolean enchanted) implements Purchasable {
 
     private static final List<WeaponShopItem> ITEMS = List.of(
             new WeaponShopItem("Wood Sword", Items.WOODEN_SWORD, 15, "Basic melee", false),
@@ -19,6 +20,9 @@ public record WeaponShopItem(String name, Item item, int defaultPrice, String de
     public int price() {
         return ConfigManager.getInstance().getWeaponPrice(name);
     }
+
+    @Override
+    public int getPrice() { return price(); }
 
     public int getDefaultTier() {
         return switch (name) {

@@ -15,8 +15,7 @@ import com.towerdefense.wave.SpawnerType;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Thread-safe configuration manager. Loads from JSON, provides getters with defaults.
@@ -26,8 +25,11 @@ public class ConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int WEB_PORT = 8765;
 
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private volatile TDConfig config;
+    // Initialised with a plain TDConfig so that TDConfig field-level defaults (tier costs, nexus HP, etc.)
+    // are available immediately, even before init() is called (e.g. in unit tests without a MC server).
+    // createDefaults() populates MC-dependent sections (mob/spawner/generator maps) and is only called
+    // from init() once Minecraft registries are bootstrapped.
+    private final AtomicReference<TDConfig> configRef = new AtomicReference<>(new TDConfig());
     private Path configPath;
 
     private static ConfigManager instance;
@@ -41,25 +43,24 @@ public class ConfigManager {
 
     public void init(Path configDir) {
         configPath = configDir.resolve("towerdefense.json");
-        lock.writeLock().lock();
-        try {
-            if (Files.exists(configPath)) {
-                try {
-                    String json = Files.readString(configPath);
-                    config = GSON.fromJson(json, TDConfig.class);
-                    if (config == null) config = createDefaults();
-                    else mergeDefaults(config);
-                } catch (Exception e) {
-                    TowerDefenseMod.LOGGER.warn("Failed to load config, using defaults: {}", e.getMessage());
-                    config = createDefaults();
-                }
-            } else {
-                config = createDefaults();
-                saveUnlocked();
+        TDConfig loaded;
+        if (Files.exists(configPath)) {
+            try {
+                String json = Files.readString(configPath);
+                loaded = GSON.fromJson(json, TDConfig.class);
+                if (loaded == null) loaded = createDefaults();
+                else mergeDefaults(loaded);
+            } catch (Exception e) {
+                TowerDefenseMod.LOGGER.warn("Failed to load config, using defaults: {}", e.getMessage());
+                loaded = createDefaults();
             }
-        } finally {
-            lock.writeLock().unlock();
+        } else {
+            loaded = createDefaults();
+            configRef.set(loaded);
+            saveUnlocked();
+            return;
         }
+        configRef.set(loaded);
     }
 
     public int getWebPort() {
@@ -67,67 +68,42 @@ public class ConfigManager {
     }
 
     public TDConfig getConfig() {
-        lock.readLock().lock();
-        try {
-            return config;
-        } finally {
-            lock.readLock().unlock();
-        }
+        return configRef.get();
     }
 
     public void updateConfig(TDConfig newConfig) {
-        lock.writeLock().lock();
-        try {
-            mergeDefaults(newConfig);
-            this.config = newConfig;
-            saveUnlocked();
-        } finally {
-            lock.writeLock().unlock();
-        }
+        mergeDefaults(newConfig);
+        configRef.set(newConfig);
+        saveUnlocked();
     }
 
     public void patchConfig(TDConfig patch) {
-        lock.writeLock().lock();
-        try {
-            config = merge(config, patch);
-            saveUnlocked();
-        } finally {
-            lock.writeLock().unlock();
-        }
+        configRef.set(merge(configRef.get(), patch));
+        saveUnlocked();
     }
 
     /**
      * Apply server config on client for display (shop, etc.). Does NOT save to disk.
      */
     public void applyServerConfig(TDConfig serverConfig) {
-        lock.writeLock().lock();
-        try {
-            mergeDefaults(serverConfig);
-            this.config = serverConfig;
-        } finally {
-            lock.writeLock().unlock();
-        }
+        mergeDefaults(serverConfig);
+        configRef.set(serverConfig);
     }
 
     public void save() {
-        lock.writeLock().lock();
-        try {
-            saveUnlocked();
-        } finally {
-            lock.writeLock().unlock();
-        }
+        saveUnlocked();
     }
 
     private void saveUnlocked() {
         try {
             Files.createDirectories(configPath.getParent());
-            Files.writeString(configPath, GSON.toJson(config));
+            Files.writeString(configPath, GSON.toJson(configRef.get()));
         } catch (IOException e) {
             TowerDefenseMod.LOGGER.error("Failed to save config: {}", e.getMessage());
         }
     }
 
-    private TDConfig createDefaults() {
+    private static TDConfig createDefaults() {
         TDConfig c = new TDConfig();
         // Mobs
         for (MobType m : MobType.values()) {
@@ -191,7 +167,7 @@ public class ConfigManager {
         return c;
     }
 
-    private TDConfig.TowerSection tower(int power, double range, int rate, int price) {
+    private static TDConfig.TowerSection tower(int power, double range, int rate, int price) {
         TDConfig.TowerSection t = new TDConfig.TowerSection();
         t.power = power;
         t.range = range;
@@ -279,746 +255,207 @@ public class ConfigManager {
     }
 
     // ─── Getters (game section) ───
-    public int getStartingMoney() {
-        lock.readLock().lock();
-        try {
-            return config.game.startingMoney;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getNexusMaxHp() {
-        lock.readLock().lock();
-        try {
-            return config.game.nexusMaxHp;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getTier2Cost() {
-        lock.readLock().lock();
-        try {
-            return config.game.tier2Cost;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getTier3Cost() {
-        lock.readLock().lock();
-        try {
-            return config.game.tier3Cost;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getNexusExplosionRadius() {
-        lock.readLock().lock();
-        try {
-            return config.game.nexusExplosionRadius;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getPrepPhaseTicks() {
-        lock.readLock().lock();
-        try {
-            return config.game.prepPhaseTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getBasePassiveIncome() {
-        lock.readLock().lock();
-        try {
-            return config.game.basePassiveIncome;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getBasePassiveInterval() {
-        lock.readLock().lock();
-        try {
-            return config.game.basePassiveInterval;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getDefeatDelayTicks() {
-        lock.readLock().lock();
-        try {
-            return config.game.defeatDelayTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getChainExplosionDelay() {
-        lock.readLock().lock();
-        try {
-            return config.game.chainExplosionDelay;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
+    public int getStartingMoney() { return configRef.get().game.startingMoney; }
+    public int getNexusMaxHp() { return configRef.get().game.nexusMaxHp; }
+    public int getTier2Cost() { return configRef.get().game.tier2Cost; }
+    public int getTier3Cost() { return configRef.get().game.tier3Cost; }
+    public double getNexusExplosionRadius() { return configRef.get().game.nexusExplosionRadius; }
+    public int getPrepPhaseTicks() { return configRef.get().game.prepPhaseTicks; }
+    public int getBasePassiveIncome() { return configRef.get().game.basePassiveIncome; }
+    public int getBasePassiveInterval() { return configRef.get().game.basePassiveInterval; }
+    public int getDefeatDelayTicks() { return configRef.get().game.defeatDelayTicks; }
+    public int getChainExplosionDelay() { return configRef.get().game.chainExplosionDelay; }
 
     public double getSoloModeStartingMultiplier() {
-        lock.readLock().lock();
-        try {
-            return config.game.soloModeStartingMultiplier > 0 ? config.game.soloModeStartingMultiplier : 1.5;
-        } finally {
-            lock.readLock().unlock();
-        }
+        double v = configRef.get().game.soloModeStartingMultiplier;
+        return v > 0 ? v : 1.5;
     }
-
     public double getSoloModeIncomeMultiplier() {
-        lock.readLock().lock();
-        try {
-            return config.game.soloModeIncomeMultiplier > 0 ? config.game.soloModeIncomeMultiplier : 1.5;
-        } finally {
-            lock.readLock().unlock();
-        }
+        double v = configRef.get().game.soloModeIncomeMultiplier;
+        return v > 0 ? v : 1.5;
     }
-
     public double getSoloModeGeneratorMultiplier() {
-        lock.readLock().lock();
-        try {
-            return config.game.soloModeGeneratorMultiplier > 0 ? config.game.soloModeGeneratorMultiplier : 1.5;
-        } finally {
-            lock.readLock().unlock();
-        }
+        double v = configRef.get().game.soloModeGeneratorMultiplier;
+        return v > 0 ? v : 1.5;
     }
 
     // ─── Arena ───
-    public int getArenaSize() {
-        lock.readLock().lock();
-        try {
-            return config.arena.size;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getArenaWallHeight() {
-        lock.readLock().lock();
-        try {
-            return config.arena.wallHeight;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getArenaY() {
-        lock.readLock().lock();
-        try {
-            return config.arena.arenaY;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getStandDepth() {
-        lock.readLock().lock();
-        try {
-            return config.arena.standDepth;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getStandHeight() {
-        lock.readLock().lock();
-        try {
-            return config.arena.standHeight;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
+    public int getArenaSize() { return configRef.get().arena.size; }
+    public int getArenaWallHeight() { return configRef.get().arena.wallHeight; }
+    public int getArenaY() { return configRef.get().arena.arenaY; }
+    public int getStandDepth() { return configRef.get().arena.standDepth; }
+    public int getStandHeight() { return configRef.get().arena.standHeight; }
 
     // ─── Mobs ───
     public double getMobBaseHp(MobType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.MobSection s = config.mobs.get(type.name());
-            return s != null ? s.baseHp : type.getDefaultBaseHp();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.MobSection s = configRef.get().mobs.get(type.name());
+        return s != null ? s.baseHp : type.getDefaultBaseHp();
     }
-
     public double getMobSpeed(MobType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.MobSection s = config.mobs.get(type.name());
-            return s != null ? s.speed : type.getDefaultSpeed();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.MobSection s = configRef.get().mobs.get(type.name());
+        return s != null ? s.speed : type.getDefaultSpeed();
     }
-
     public int getMobNexusDamage(MobType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.MobSection s = config.mobs.get(type.name());
-            return s != null ? s.nexusDamage : type.getDefaultNexusDamage();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.MobSection s = configRef.get().mobs.get(type.name());
+        return s != null ? s.nexusDamage : type.getDefaultNexusDamage();
     }
-
     public int getMobMoneyReward(MobType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.MobSection s = config.mobs.get(type.name());
-            return s != null ? s.moneyReward : type.getDefaultMoneyReward();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.MobSection s = configRef.get().mobs.get(type.name());
+        return s != null ? s.moneyReward : type.getDefaultMoneyReward();
     }
 
     // ─── Spawners ───
     public int getSpawnerPrice(SpawnerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.SpawnerSection s = config.spawners.get(type.name());
-            return s != null ? s.price : type.getDefaultPrice();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.SpawnerSection s = configRef.get().spawners.get(type.name());
+        return s != null ? s.price : type.getDefaultPrice();
     }
-
     public int getSpawnerInterval(SpawnerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.SpawnerSection s = config.spawners.get(type.name());
-            return s != null ? s.spawnIntervalTicks : type.getDefaultSpawnIntervalTicks();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.SpawnerSection s = configRef.get().spawners.get(type.name());
+        return s != null ? s.spawnIntervalTicks : type.getDefaultSpawnIntervalTicks();
     }
-
     public int getSpawnerTier(SpawnerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.SpawnerSection s = config.spawners.get(type.name());
-            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.SpawnerSection s = configRef.get().spawners.get(type.name());
+        return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
     }
 
     // ─── Towers ───
     public int getTowerPower(TowerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.TowerSection s = config.towers.get(type.name());
-            return s != null ? s.power : 0;
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.TowerSection s = configRef.get().towers.get(type.name());
+        return s != null ? s.power : 0;
     }
-
     public double getTowerRange(TowerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.TowerSection s = config.towers.get(type.name());
-            return s != null ? s.range : 10;
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.TowerSection s = configRef.get().towers.get(type.name());
+        return s != null ? s.range : 10;
     }
-
     public int getTowerFireRate(TowerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.TowerSection s = config.towers.get(type.name());
-            return s != null ? s.fireRateInTicks : 40;
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.TowerSection s = configRef.get().towers.get(type.name());
+        return s != null ? s.fireRateInTicks : 40;
     }
-
     public int getTowerPrice(TowerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.TowerSection s = config.towers.get(type.name());
-            return s != null ? s.price : 10;
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.TowerSection s = configRef.get().towers.get(type.name());
+        return s != null ? s.price : 10;
     }
-
     public int getTowerTier(TowerType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.TowerSection s = config.towers.get(type.name());
-            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.TowerSection s = configRef.get().towers.get(type.name());
+        return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
     }
 
     // ─── Generators ───
     public int getGeneratorPrice(IncomeGeneratorType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.GeneratorSection s = config.generators.get(type.name());
-            return s != null ? s.price : type.getPrice();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.GeneratorSection s = configRef.get().generators.get(type.name());
+        return s != null ? s.price : type.getDefaultPrice();
     }
-
     public int getGeneratorIncomeAmount(IncomeGeneratorType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.GeneratorSection s = config.generators.get(type.name());
-            return s != null ? s.incomeAmount : type.getDefaultIncomeAmount();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.GeneratorSection s = configRef.get().generators.get(type.name());
+        return s != null ? s.incomeAmount : type.getDefaultIncomeAmount();
     }
-
     public int getGeneratorIncomeInterval(IncomeGeneratorType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.GeneratorSection s = config.generators.get(type.name());
-            return s != null ? s.incomeIntervalTicks : type.getDefaultIncomeIntervalTicks();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.GeneratorSection s = configRef.get().generators.get(type.name());
+        return s != null ? s.incomeIntervalTicks : type.getDefaultIncomeIntervalTicks();
     }
-
     public int getGeneratorTier(IncomeGeneratorType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.GeneratorSection s = config.generators.get(type.name());
-            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.GeneratorSection s = configRef.get().generators.get(type.name());
+        return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
     }
 
     // ─── Spells ───
     public int getSpellPrice(SpellType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.SpellSection s = config.spells.get(type.name());
-            return s != null ? s.price : type.getDefaultPrice();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.SpellSection s = configRef.get().spells.get(type.name());
+        return s != null ? s.price : type.getDefaultPrice();
     }
-
     public int getSpellTier(SpellType type) {
-        lock.readLock().lock();
-        try {
-            TDConfig.SpellSection s = config.spells.get(type.name());
-            return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.SpellSection s = configRef.get().spells.get(type.name());
+        return (s != null && s.tier > 0) ? s.tier : type.getDefaultTier();
     }
 
     // ─── Weapons ───
     public int getWeaponPrice(String name) {
-        lock.readLock().lock();
-        try {
-            Integer p = config.weapons.get(name);
-            return p != null ? p : 15;
-        } finally {
-            lock.readLock().unlock();
-        }
+        Integer p = configRef.get().weapons.get(name);
+        return p != null ? p : 15;
     }
-
     public int getWeaponTier(WeaponShopItem item) {
-        lock.readLock().lock();
-        try {
-            Integer t = config.weaponTiers.get(item.name());
-            return (t != null && t > 0) ? t : item.getDefaultTier();
-        } finally {
-            lock.readLock().unlock();
-        }
+        Integer t = configRef.get().weaponTiers.get(item.name());
+        return (t != null && t > 0) ? t : item.getDefaultTier();
     }
 
     // ─── Walls ───
     public int getWallPrice(String name) {
-        lock.readLock().lock();
-        try {
-            Integer p = config.walls.get(name);
-            return p != null ? p : 3;
-        } finally {
-            lock.readLock().unlock();
-        }
+        Integer p = configRef.get().walls.get(name);
+        return p != null ? p : 3;
     }
-
     public int getWallTier(WallShopItem item) {
-        lock.readLock().lock();
-        try {
-            Integer t = config.wallTiers.get(item.name());
-            return (t != null && t > 0) ? t : item.getDefaultTier();
-        } finally {
-            lock.readLock().unlock();
-        }
+        Integer t = configRef.get().wallTiers.get(item.name());
+        return (t != null && t > 0) ? t : item.getDefaultTier();
     }
 
     // ─── Upgrades ───
     public int getUpgradeBaseCost(MobUpgradeManager.UpgradeType type) {
-        lock.readLock().lock();
-        try {
-            return switch (type) {
-                case HP -> config.upgrades.hpBaseCost;
-                case SPEED -> config.upgrades.speedBaseCost;
-                case DAMAGE -> config.upgrades.damageBaseCost;
-            };
-        } finally {
-            lock.readLock().unlock();
-        }
+        TDConfig.UpgradesSection u = configRef.get().upgrades;
+        return switch (type) {
+            case HP -> u.hpBaseCost;
+            case SPEED -> u.speedBaseCost;
+            case DAMAGE -> u.damageBaseCost;
+        };
     }
-
-    public int getSpawnerExtraCostPerUpgrade() {
-        lock.readLock().lock();
-        try {
-            return config.upgrades.spawnerExtraCostPerUpgrade;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getHpMultiplierPerLevel() {
-        lock.readLock().lock();
-        try {
-            return config.upgrades.hpMultiplierPerLevel;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getSpeedMultiplierPerLevel() {
-        lock.readLock().lock();
-        try {
-            return config.upgrades.speedMultiplierPerLevel;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
+    public int getSpawnerExtraCostPerUpgrade() { return configRef.get().upgrades.spawnerExtraCostPerUpgrade; }
+    public double getHpMultiplierPerLevel() { return configRef.get().upgrades.hpMultiplierPerLevel; }
+    public double getSpeedMultiplierPerLevel() { return configRef.get().upgrades.speedMultiplierPerLevel; }
     public int getTowerUpgradeBaseCost() {
-        lock.readLock().lock();
-        try {
-            int v = config.upgrades.towerUpgradeBaseCost;
-            return v > 0 ? v : 25;
-        } finally {
-            lock.readLock().unlock();
-        }
+        int v = configRef.get().upgrades.towerUpgradeBaseCost;
+        return v > 0 ? v : 25;
     }
-
-    public double getTowerPowerMultiplierPerLevel() {
-        lock.readLock().lock();
-        try {
-            return config.upgrades.towerPowerMultiplierPerLevel;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getTowerFireRateMultiplierPerLevel() {
-        lock.readLock().lock();
-        try {
-            return config.upgrades.towerFireRateMultiplierPerLevel;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getTowerEffectDurationMultiplierPerLevel() {
-        lock.readLock().lock();
-        try {
-            return config.upgrades.towerEffectDurationMultiplierPerLevel;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
+    public double getTowerPowerMultiplierPerLevel() { return configRef.get().upgrades.towerPowerMultiplierPerLevel; }
+    public double getTowerFireRateMultiplierPerLevel() { return configRef.get().upgrades.towerFireRateMultiplierPerLevel; }
+    public double getTowerEffectDurationMultiplierPerLevel() { return configRef.get().upgrades.towerEffectDurationMultiplierPerLevel; }
 
     // ─── Spell effects ───
-    public int getFireballLifetime() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.fireballLifetime;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getFireballExplosionRadius() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.fireballExplosionRadius;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getFreezeDurationTicks() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.freezeDurationTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getHealNexusAmount() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.healNexusAmount;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getLightningBoxSize() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.lightningBoxSize;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getLightningDamage() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.lightningDamage;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getShieldDurationTicks() {
-        lock.readLock().lock();
-        try {
-            return config.spellEffects.shieldDurationTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
+    public int getFireballLifetime() { return configRef.get().spellEffects.fireballLifetime; }
+    public double getFireballExplosionRadius() { return configRef.get().spellEffects.fireballExplosionRadius; }
+    public int getFreezeDurationTicks() { return configRef.get().spellEffects.freezeDurationTicks; }
+    public int getHealNexusAmount() { return configRef.get().spellEffects.healNexusAmount; }
+    public int getLightningBoxSize() { return configRef.get().spellEffects.lightningBoxSize; }
+    public int getLightningDamage() { return configRef.get().spellEffects.lightningDamage; }
+    public int getShieldDurationTicks() { return configRef.get().spellEffects.shieldDurationTicks; }
 
     // ─── Tower effects ───
-    public int getFireTicks() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.fireTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getSlowDurationTicks() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.slowDurationTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getSlowAmplifier() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.slowAmplifier;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getPoisonDurationTicks() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.poisonDurationTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getPoisonAmplifier() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.poisonAmplifier;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getChainLightningBoxSize() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.chainLightningBoxSize;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getChainLightningMaxTargets() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.chainLightningMaxTargets;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getAoeBoxSize() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.aoeBoxSize;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getAoeDamageRadius() {
-        lock.readLock().lock();
-        try {
-            return config.towerEffects.aoeDamageRadius;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
+    public int getFireTicks() { return configRef.get().towerEffects.fireTicks; }
+    public int getSlowDurationTicks() { return configRef.get().towerEffects.slowDurationTicks; }
+    public int getSlowAmplifier() { return configRef.get().towerEffects.slowAmplifier; }
+    public int getPoisonDurationTicks() { return configRef.get().towerEffects.poisonDurationTicks; }
+    public int getPoisonAmplifier() { return configRef.get().towerEffects.poisonAmplifier; }
+    public int getChainLightningBoxSize() { return configRef.get().towerEffects.chainLightningBoxSize; }
+    public int getChainLightningMaxTargets() { return configRef.get().towerEffects.chainLightningMaxTargets; }
+    public double getAoeBoxSize() { return configRef.get().towerEffects.aoeBoxSize; }
+    public double getAoeDamageRadius() { return configRef.get().towerEffects.aoeDamageRadius; }
 
     // ─── Spawner effects ───
-    public double getSpawnSpread() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.spawnSpread;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getEndermanTeleportRange() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.endermanTeleportRange;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getWitchHealBoxSize() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.witchHealBoxSize;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getWitchHealDurationTicks() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.witchHealDurationTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public double getWitchHealAmount() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.witchHealAmount;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
+    public double getSpawnSpread() { return configRef.get().spawnerEffects.spawnSpread; }
+    public double getEndermanTeleportRange() { return configRef.get().spawnerEffects.endermanTeleportRange; }
+    public int getWitchHealBoxSize() { return configRef.get().spawnerEffects.witchHealBoxSize; }
     public int getWitchHealIntervalTicks() {
-        lock.readLock().lock();
-        try {
-            int v = config.spawnerEffects.witchHealIntervalTicks;
-            return v > 0 ? v : 120;
-        } finally {
-            lock.readLock().unlock();
-        }
+        int v = configRef.get().spawnerEffects.witchHealIntervalTicks;
+        return v > 0 ? v : 120;
     }
-
-    public double getFollowRange() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.followRange;
-        } finally {
-            lock.readLock().unlock();
-        }
+    public double getWitchHealPercent() {
+        double v = configRef.get().spawnerEffects.witchHealPercent;
+        return v > 0 ? v : 0.05;
     }
-
-    public int getSpecialMobTickInterval() {
-        lock.readLock().lock();
-        try {
-            return config.spawnerEffects.specialMobTickInterval;
-        } finally {
-            lock.readLock().unlock();
-        }
+    public double getWitchHealMinPercent() {
+        double v = configRef.get().spawnerEffects.witchHealMinPercent;
+        return v > 0 ? v : 0.01;
     }
+    public double getWitchHealDecayFactor() {
+        double v = configRef.get().spawnerEffects.witchHealDecayFactor;
+        return (v > 0 && v < 1.0) ? v : 0.8;
+    }
+    public double getFollowRange() { return configRef.get().spawnerEffects.followRange; }
+    public int getSpecialMobTickInterval() { return configRef.get().spawnerEffects.specialMobTickInterval; }
 
     // ─── Game events ───
-    public int getWaveEventIntervalTicks() {
-        lock.readLock().lock();
-        try {
-            return config.gameEvents.waveEventIntervalTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getBonusMoney() {
-        lock.readLock().lock();
-        try {
-            return config.gameEvents.bonusMoney;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getDoubleIncomeMultiplier() {
-        lock.readLock().lock();
-        try {
-            return config.gameEvents.doubleIncomeMultiplier;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getSpeedBoostDurationTicks() {
-        lock.readLock().lock();
-        try {
-            return config.gameEvents.speedBoostDurationTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getStructureDestroyedBounty() {
-        lock.readLock().lock();
-        try {
-            return config.gameEvents.structureDestroyedBounty;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public int getOreSpawnIntervalTicks() {
-        lock.readLock().lock();
-        try {
-            return config.gameEvents.oreSpawnIntervalTicks;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
+    public int getWaveEventIntervalTicks() { return configRef.get().gameEvents.waveEventIntervalTicks; }
+    public int getBonusMoney() { return configRef.get().gameEvents.bonusMoney; }
+    public int getDoubleIncomeMultiplier() { return configRef.get().gameEvents.doubleIncomeMultiplier; }
+    public int getSpeedBoostDurationTicks() { return configRef.get().gameEvents.speedBoostDurationTicks; }
+    public int getStructureDestroyedBounty() { return configRef.get().gameEvents.structureDestroyedBounty; }
+    public int getOreSpawnIntervalTicks() { return configRef.get().gameEvents.oreSpawnIntervalTicks; }
 }

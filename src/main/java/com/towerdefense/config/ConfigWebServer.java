@@ -134,11 +134,11 @@ public class ConfigWebServer {
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
-    /** Ensures weapons and walls are flat Map<String,Integer> (client may send nested objects). */
+    /** Ensures map fields are flat Map<String,Integer> (client may send nested objects). */
     private static String sanitizeMapFields(String json) {
         try {
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            for (String key : new String[]{"weapons", "walls"}) {
+            for (String key : new String[]{"weapons", "walls", "weaponTiers", "wallTiers"}) {
                 if (!root.has(key) || !root.get(key).isJsonObject()) continue;
                 JsonObject map = root.getAsJsonObject(key);
                 JsonObject flat = new JsonObject();
@@ -231,9 +231,9 @@ const LABELS = {
   chainLightningBoxSize:'Taille zone Chain Lightning',chainLightningMaxTargets:'Cibles max Chain Lightning',
   aoeBoxSize:'Taille zone AOE',aoeDamageRadius:'Rayon dégâts AOE',
   spawnSpread:'Spread spawn',endermanTeleportRange:'Portée téléport Enderman',  witchHealBoxSize:'Taille heal Witch',
-  witchHealDurationTicks:'Durée heal Witch',
   witchHealIntervalTicks:'Intervalle heal Witch (ticks)',
-  witchHealAmount:'HP par heal Witch',followRange:'Portée follow',specialMobTickInterval:'Intervalle mobs spéciaux',
+  witchHealPercent:'% PV max soigné (Witch)',witchHealMinPercent:'% PV min après déclin',witchHealDecayFactor:'Facteur déclin heal consécutif',
+  followRange:'Portée follow',specialMobTickInterval:'Intervalle mobs spéciaux',
   waveEventIntervalTicks:'Intervalle événements vague',bonusMoney:'Bonus or',doubleIncomeMultiplier:'Multiplicateur double revenu',
   speedBoostDurationTicks:'Durée speed boost',  structureDestroyedBounty:'Prime structure détruite',
   soloModeStartingMultiplier:'Multiplicateur argent départ solo',

@@ -3,9 +3,12 @@ package com.towerdefense.wave;
 import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.config.ConfigManager;
 import com.towerdefense.game.GameConfig;
+import com.towerdefense.mob.TDEnderman;
+import com.towerdefense.mob.TDMob;
+import com.towerdefense.mob.TDRavager;
+import com.towerdefense.mob.TDWitch;
 import net.minecraft.ChatFormatting;
 import com.towerdefense.mob.MoveToNexusGoal;
-import com.towerdefense.mob.RavagerBreachBehavior;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -14,13 +17,11 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
 
 import java.util.*;
 
@@ -38,7 +39,6 @@ public class SpawnerManager {
 
     private final List<ActiveSpawner> spawners = new ArrayList<>();
     private final List<Mob> aliveMobs = new ArrayList<>();
-    private final Map<Mob, RavagerBreachBehavior> ravagerBehaviors = new HashMap<>();
     private MobUpgradeManager upgradeManager;
 
     public void setUpgradeManager(MobUpgradeManager manager) {
@@ -76,15 +76,6 @@ public class SpawnerManager {
 
     public void tick(ServerLevel world, boolean prepPhase) {
         aliveMobs.removeIf(mob -> !mob.isAlive());
-        ravagerBehaviors.keySet().removeIf(mob -> !mob.isAlive());
-
-        for (var entry : ravagerBehaviors.entrySet()) {
-            if (entry.getKey().isAlive()) {
-                entry.getValue().tick(entry.getKey(), world);
-            }
-        }
-
-        tickSpecialMobs(world);
         tickMobHpDisplays(world);
 
         if (prepPhase) return;
@@ -106,50 +97,14 @@ public class SpawnerManager {
         }
     }
 
-    private int specialTickCounter = 0;
     private int hpDisplayTickCounter = 0;
-
-    private void tickSpecialMobs(ServerLevel world) {
-        specialTickCounter++;
-        int specialInterval = ConfigManager.getInstance().getSpecialMobTickInterval();
-        if (specialTickCounter % specialInterval != 0) return;
-
-        int witchHealInterval = ConfigManager.getInstance().getWitchHealIntervalTicks();
-
-        for (Mob mob : aliveMobs) {
-            if (!mob.isAlive()) continue;
-
-            String typeTag = mob.getTags().stream().filter(t -> t.startsWith("td_type_")).findFirst().orElse("");
-            String ownerTag = mob.getTags().stream().filter(t -> t.startsWith("td_owner_")).findFirst().orElse("");
-
-            if (typeTag.equals("td_type_ENDERMAN")) {
-                double rx = mob.getX() + (world.random.nextDouble() - 0.5) * 8;
-                double rz = mob.getZ() + (world.random.nextDouble() - 0.5) * 8;
-                mob.teleportTo(rx, mob.getY(), rz);
-            }
-
-            if (typeTag.equals("td_type_WITCH")) {
-                if (specialTickCounter % witchHealInterval != 0) continue;
-                int boxSize = ConfigManager.getInstance().getWitchHealBoxSize();
-                double healAmount = ConfigManager.getInstance().getWitchHealAmount();
-                if (healAmount <= 0) continue;
-                AABB healBox = AABB.ofSize(mob.position(), boxSize, 4, boxSize);
-                String allyTag = ownerTag.isEmpty() ? "none" : ownerTag;
-                for (Entity e : world.getEntities((Entity) null, healBox, ent -> ent instanceof LivingEntity && ent.isAlive() && ent.getTags().contains("td_mob"))) {
-                    if (!e.getTags().contains(allyTag)) continue;
-                    LivingEntity le = (LivingEntity) e;
-                    le.heal((float) healAmount);
-                }
-            }
-        }
-    }
 
     private void tickMobHpDisplays(ServerLevel world) {
         hpDisplayTickCounter++;
         if (hpDisplayTickCounter % 10 != 0) return;
 
         for (Mob mob : aliveMobs) {
-            if (mob.isAlive() && mob.getTags().contains("td_mob")) {
+            if (mob.isAlive() && mob.getTags().contains(MobTags.MOB)) {
                 updateMobHpDisplay(mob);
             }
         }
@@ -226,9 +181,9 @@ public class SpawnerManager {
         mob.targetSelector.removeAllGoals(g -> true);
         mob.goalSelector.addGoal(0, new MoveToNexusGoal(mob, spawner.targetNexus(), speed));
 
-        mob.addTag("td_mob");
-        mob.addTag("td_type_" + type.name());
-        mob.addTag("td_owner_" + spawner.teamId());
+        mob.addTag(MobTags.MOB);
+        mob.addTag(MobTags.typeTag(type.name()));
+        mob.addTag(MobTags.ownerTag(spawner.teamId()));
 
         mob.setCustomNameVisible(true);
         updateMobHpDisplay(mob);
@@ -236,8 +191,12 @@ public class SpawnerManager {
         world.addFreshEntity(mob);
         aliveMobs.add(mob);
 
-        if (type == MobType.RAVAGER) {
-            ravagerBehaviors.put(mob, new RavagerBreachBehavior());
+        // Attach special behavior — the wrapper self-registers to the server tick event
+        switch (type) {
+            case WITCH    -> new TDWitch(mob, spawner.teamId());
+            case ENDERMAN -> new TDEnderman(mob, spawner.teamId());
+            case RAVAGER  -> new TDRavager(mob, spawner.teamId());
+            default       -> {} // no special behavior
         }
     }
 
@@ -277,7 +236,8 @@ public class SpawnerManager {
             if (mob.isAlive()) mob.discard();
         }
         aliveMobs.clear();
-        ravagerBehaviors.clear();
+        TDMob.clearAll();
+        TDWitch.resetHealState();
     }
 
     public List<Mob> getAliveMobs() {

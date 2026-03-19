@@ -2,6 +2,9 @@ package com.towerdefense.arena;
 
 import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.game.GameConfig;
+import com.towerdefense.wave.MobTags;
+import com.towerdefense.wave.MobType;
+import com.towerdefense.wave.MobUpgradeManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -10,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -142,6 +146,35 @@ public class NexusManager {
 
     public boolean isShielded() {
         return shieldTicks > 0;
+    }
+
+    /**
+     * Checks if the given mob is within nexus explosion radius. If so, applies mob damage
+     * to the nexus, spawns particles, and discards the mob.
+     *
+     * @return true if the mob impacted (and was discarded), false if it was out of range.
+     */
+    public boolean checkAndApplyMobImpact(ServerLevel world, Mob mob, MobUpgradeManager mobUpgradeManager) {
+        if (!mob.isAlive() || center == null) return false;
+        double dist = mob.distanceToSqr(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
+        double radius = GameConfig.NEXUS_EXPLOSION_RADIUS();
+        if (dist >= radius * radius) return false;
+
+        String typeName = MobTags.getType(mob);
+        if (typeName == null) typeName = "ZOMBIE";
+
+        int damage = 5;
+        try {
+            MobType mt = MobType.valueOf(typeName);
+            int mobTeam = MobTags.getTeamId(mob);
+            damage = mt.getNexusDamage() + mobUpgradeManager.getDamageBonus(mobTeam, mt);
+        } catch (IllegalArgumentException ignored) {}
+
+        damage(world, damage);
+        world.sendParticles(ParticleTypes.EXPLOSION,
+                mob.getX(), mob.getY() + 0.5, mob.getZ(), 3, 0.3, 0.3, 0.3, 0.01);
+        mob.discard();
+        return true;
     }
 
     public boolean isNexusBlock(BlockPos pos) {

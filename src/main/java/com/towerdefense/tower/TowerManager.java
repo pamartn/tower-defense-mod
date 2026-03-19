@@ -1,7 +1,7 @@
 package com.towerdefense.tower;
 
 import com.towerdefense.config.ConfigManager;
-import com.towerdefense.game.GameManager;
+import com.towerdefense.game.StructureEventSink;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -43,12 +43,12 @@ public class TowerManager {
 
     private final List<ActiveTower> towers = new ArrayList<>();
     private final List<PendingCannonImpact> pendingCannonImpacts = new ArrayList<>();
-    private GameManager gameManager;
+    private StructureEventSink gameManager;
 
     private record PendingCannonImpact(ServerLevel world, Vec3 pos, int power, int fireTicks, int ticksLeft, int teamId) {}
     private com.towerdefense.tower.TowerUpgradeManager towerUpgradeManager;
 
-    public void setGameManager(GameManager gameManager) {
+    public void setGameManager(StructureEventSink gameManager) {
         this.gameManager = gameManager;
     }
 
@@ -314,9 +314,9 @@ public class TowerManager {
         double closestDist = range;
 
         AABB scanBox = AABB.ofSize(center, range * 2, range * 2, range * 2);
-        String ownerTag = "td_owner_" + teamId;
+        String ownerTag = com.towerdefense.wave.MobTags.ownerTag(teamId);
 
-        for (Entity entity : world.getEntities((Entity) null, scanBox, e -> e instanceof LivingEntity le && le.isAlive() && le.getTags().contains("td_mob") && (!tdMode || !le.getTags().contains(ownerTag)))) {
+        for (Entity entity : world.getEntities((Entity) null, scanBox, e -> e instanceof LivingEntity le && le.isAlive() && le.getTags().contains(com.towerdefense.wave.MobTags.MOB) && (!tdMode || !le.getTags().contains(ownerTag)))) {
 
             double dist = entity.position().distanceTo(center);
             if (dist < closestDist) {
@@ -395,10 +395,10 @@ public class TowerManager {
     private void executeCannonImpact(PendingCannonImpact impact) {
         ServerLevel world = impact.world();
         Vec3 center = impact.pos();
-        String ownerTag = "td_owner_" + impact.teamId();
+        String ownerTag = com.towerdefense.wave.MobTags.ownerTag(impact.teamId());
         AABB aoeBox = AABB.ofSize(center, 8, 8, 8);
 
-        for (Entity e : world.getEntities((Entity) null, aoeBox, ent -> ent instanceof LivingEntity le && le.isAlive() && le.getTags().contains("td_mob") && !le.getTags().contains(ownerTag))) {
+        for (Entity e : world.getEntities((Entity) null, aoeBox, ent -> ent instanceof LivingEntity le && le.isAlive() && le.getTags().contains(com.towerdefense.wave.MobTags.MOB) && !le.getTags().contains(ownerTag))) {
             if (e.position().distanceTo(center) <= CANNON_AOE_RADIUS) {
                 LivingEntity le = (LivingEntity) e;
                 le.hurt(world.damageSources().explosion(null, null), impact.power());
@@ -512,10 +512,10 @@ public class TowerManager {
         spawnLightningOnTarget(world, target);
         target.hurt(world.damageSources().magic(), power);
 
-        String ownerTag = "td_owner_" + findTeamIdForTower(marker);
+        String ownerTag = com.towerdefense.wave.MobTags.ownerTag(findTeamIdForTower(marker));
         AABB chainBox = AABB.ofSize(center, 8, 8, 8);
         int chained = 0;
-        for (Entity e : world.getEntities((Entity) null, chainBox, ent -> ent instanceof LivingEntity le && le.isAlive() && ent != target && le.getTags().contains("td_mob") && !le.getTags().contains(ownerTag))) {
+        for (Entity e : world.getEntities((Entity) null, chainBox, ent -> ent instanceof LivingEntity le && le.isAlive() && ent != target && le.getTags().contains(com.towerdefense.wave.MobTags.MOB) && !le.getTags().contains(ownerTag))) {
             if (chained >= 2) break;
             spawnLightningOnTarget(world, (LivingEntity) e);
             ((LivingEntity) e).hurt(world.damageSources().magic(), power);
@@ -545,10 +545,10 @@ public class TowerManager {
     private void shootAOE(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
         int power = getEffectivePower(tower);
         Vec3 center = target.position();
-        String ownerTag = "td_owner_" + findTeamIdForTower(marker);
+        String ownerTag = com.towerdefense.wave.MobTags.ownerTag(findTeamIdForTower(marker));
         AABB aoeBox = AABB.ofSize(center, 8, 8, 8);
 
-        for (Entity e : world.getEntities((Entity) null, aoeBox, ent -> ent instanceof LivingEntity le && le.isAlive() && le.getTags().contains("td_mob") && !le.getTags().contains(ownerTag))) {
+        for (Entity e : world.getEntities((Entity) null, aoeBox, ent -> ent instanceof LivingEntity le && le.isAlive() && le.getTags().contains(com.towerdefense.wave.MobTags.MOB) && !le.getTags().contains(ownerTag))) {
             if (e.position().distanceTo(center) <= 4.0) {
                 ((LivingEntity) e).hurt(world.damageSources().explosion(null, null), power);
             }

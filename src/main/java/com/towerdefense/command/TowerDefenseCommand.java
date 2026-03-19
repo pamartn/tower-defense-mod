@@ -421,7 +421,7 @@ public class TowerDefenseCommand {
         caller.openMenu(new ExtendedScreenHandlerFactory<Integer>() {
             @Override public Component getDisplayName() { return Component.literal("Tower Shop"); }
             @Override public AbstractContainerMenu createMenu(int syncId, Inventory inv, Player p) {
-                return new ShopScreenHandler(syncId, inv, moneyManager, towerRegistry);
+                return new ShopScreenHandler(syncId, inv, moneyManager, towerRegistry, gameManager);
             }
             @Override public Integer getScreenOpeningData(ServerPlayer p) { return moneyManager.getMoney(); }
         });

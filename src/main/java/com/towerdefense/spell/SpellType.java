@@ -4,9 +4,10 @@ import com.towerdefense.config.ConfigManager;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Item;
 
+import com.towerdefense.shop.Purchasable;
 import java.util.List;
 
-public enum SpellType {
+public enum SpellType implements Purchasable {
 
     FIREBALL("Fireball", 200, Items.FIRE_CHARGE, "Destroys enemy buildings"),
     FREEZE_BOMB("Freeze Bomb", 150, Items.SNOWBALL, "Freeze enemy mobs 5s"),

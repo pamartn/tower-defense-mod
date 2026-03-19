@@ -71,6 +71,8 @@ public class SpectatorManager {
         float yaw = (float) (Math.atan2(-dx, dz) * 180.0 / Math.PI);
 
         mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, yaw, 0);
+        mob.yHeadRot = yaw;
+        mob.yBodyRot = yaw;
         mob.setNoAi(true);
         mob.setInvulnerable(true);
         mob.setSilent(true);

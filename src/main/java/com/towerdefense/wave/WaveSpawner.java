@@ -3,7 +3,8 @@ package com.towerdefense.wave;
 import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.game.GameConfig;
 import com.towerdefense.mob.MoveToNexusGoal;
-import com.towerdefense.mob.RavagerBreachBehavior;
+import com.towerdefense.mob.TDMob;
+import com.towerdefense.mob.TDRavager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -13,10 +14,8 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 
 public class WaveSpawner {
@@ -24,7 +23,6 @@ public class WaveSpawner {
     private WaveDefinition currentWave;
     private final Queue<MobType> spawnQueue = new LinkedList<>();
     private final List<Mob> aliveMobs = new ArrayList<>();
-    private final Map<Mob, RavagerBreachBehavior> ravagerBehaviors = new HashMap<>();
     private int spawnCooldown;
     private boolean waveActive;
 
@@ -49,15 +47,6 @@ public class WaveSpawner {
         if (!waveActive) return;
 
         aliveMobs.removeIf(mob -> !mob.isAlive());
-        ravagerBehaviors.keySet().removeIf(mob -> !mob.isAlive());
-
-        for (var entry : ravagerBehaviors.entrySet()) {
-            Mob mob = entry.getKey();
-            RavagerBreachBehavior behavior = entry.getValue();
-            if (mob.isAlive()) {
-                behavior.tick(mob, world);
-            }
-        }
 
         if (!spawnQueue.isEmpty()) {
             spawnCooldown--;
@@ -119,7 +108,7 @@ public class WaveSpawner {
         aliveMobs.add(mob);
 
         if (type == MobType.RAVAGER) {
-            ravagerBehaviors.put(mob, new RavagerBreachBehavior());
+            new TDRavager(mob, 0); // teamId 0 — WaveSpawner mobs are team-neutral
             TowerDefenseMod.LOGGER.info("[RAVAGER] Registered breach behavior for mob {}", mob.getId());
         }
 
@@ -161,7 +150,7 @@ public class WaveSpawner {
             }
         }
         aliveMobs.clear();
-        ravagerBehaviors.clear();
+        TDMob.clearAll();
         spawnQueue.clear();
         waveActive = false;
     }

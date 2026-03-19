@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "towerdefense-testmod",
+  "version": "1.0.0",
+  "name": "Tower Defense Test Mod",
+  "description": "GameTest suite for Tower Defense mod",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": [
+      "com.towerdefense.test.NexusDamageTests",
+      "com.towerdefense.test.GameManagerTests",
+      "com.towerdefense.test.WitchHealTests"
+    ]
+  },
+  "depends": {
+    "towerdefense": "*",
+    "fabric-api": "*"
+  }
+}

@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.StairsShape;
 
-public class ArenaManager {
+public class ArenaManager implements ArenaBuilder {
 
     private static int size() { return GameConfig.ARENA_SIZE(); }
     private static int depth() { return GameConfig.STAND_DEPTH(); }
@@ -621,20 +621,20 @@ public class ArenaManager {
     //  Player confinement
     // ──────────────────────────────────────────
 
-    public void confinePlayer(ServerPlayer player, int side) {
-        BlockPos pos = player.blockPosition();
-        if (!GameConfig.isInsideArena(pos) || !GameConfig.isInsidePlayerHalf(pos, side)) {
-            BlockPos spawn = side == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
-            player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
-        }
-    }
-
-    /** Confine entity (e.g. AI villager) to team half. */
-    public void confineEntity(Entity entity, int side) {
+    private void confineToHalf(Entity entity, int side) {
         BlockPos pos = entity.blockPosition();
         if (!GameConfig.isInsideArena(pos) || !GameConfig.isInsidePlayerHalf(pos, side)) {
             BlockPos spawn = side == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
             entity.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
         }
+    }
+
+    public void confinePlayer(ServerPlayer player, int side) {
+        confineToHalf(player, side);
+    }
+
+    /** Confine entity (e.g. AI villager) to team half. */
+    public void confineEntity(Entity entity, int side) {
+        confineToHalf(entity, side);
     }
 }

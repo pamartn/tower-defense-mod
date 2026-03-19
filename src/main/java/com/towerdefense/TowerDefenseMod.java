@@ -76,7 +76,7 @@ public class TowerDefenseMod implements ModInitializer {
                 ResourceLocation.fromNamespaceAndPath(MOD_ID, "shop"),
                 new ExtendedScreenHandlerType<>(
                         (syncId, inventory, data) -> {
-                            ShopScreenHandler handler = new ShopScreenHandler(syncId, inventory, null, getInstance().getTowerRegistry());
+                            ShopScreenHandler handler = new ShopScreenHandler(syncId, inventory, null, getInstance().getTowerRegistry(), null);
                             handler.setInitialMoney(data);
                             return handler;
                         },

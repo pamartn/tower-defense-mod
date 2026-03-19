@@ -4,15 +4,16 @@ import com.towerdefense.config.ConfigManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
+import com.towerdefense.shop.Purchasable;
 import java.util.List;
 
-public enum SpawnerType {
+public enum SpawnerType implements Purchasable {
 
     ZOMBIE_SPAWNER("Zombie Spawner", MobType.ZOMBIE, 15, 10 * 20, Blocks.MOSSY_COBBLESTONE),
     SKELETON_SPAWNER("Skeleton Spawner", MobType.SKELETON, 25, 12 * 20, Blocks.BONE_BLOCK),
     SPIDER_SPAWNER("Spider Spawner", MobType.SPIDER, 35, 8 * 20, Blocks.COBWEB),
     RAVAGER_SPAWNER("Ravager Spawner", MobType.RAVAGER, 100, 30 * 20, Blocks.CRYING_OBSIDIAN),
-    BABY_ZOMBIE_SPAWNER("Baby Zombie Spawner", MobType.BABY_ZOMBIE, 10, 6 * 20, Blocks.MOSS_BLOCK),
+    BABY_ZOMBIE_SPAWNER("Baby Zombie Spawner", MobType.BABY_ZOMBIE, 75, 6 * 20, Blocks.MOSS_BLOCK),
     CREEPER_SPAWNER("Creeper Spawner", MobType.CREEPER, 40, 15 * 20, Blocks.GREEN_WOOL),
     ENDERMAN_SPAWNER("Enderman Spawner", MobType.ENDERMAN, 45, 12 * 20, Blocks.END_STONE),
     WITCH_SPAWNER("Witch Spawner", MobType.WITCH, 50, 15 * 20, Blocks.CAULDRON),

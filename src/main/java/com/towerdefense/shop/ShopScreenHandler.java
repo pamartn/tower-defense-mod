@@ -1,12 +1,11 @@
 package com.towerdefense.shop;
 
 import com.towerdefense.TowerDefenseMod;
-import com.towerdefense.game.GameManager;
+import com.towerdefense.game.IGameSession;
 import com.towerdefense.game.TierManager;
 import com.towerdefense.game.IncomeGeneratorType;
 import com.towerdefense.game.MoneyManager;
 import com.towerdefense.game.PlayerKit;
-import com.towerdefense.game.PlayerState;
 import com.towerdefense.spell.SpellType;
 import com.towerdefense.wave.MobType;
 import com.towerdefense.wave.MobUpgradeManager;
@@ -49,21 +48,22 @@ public class ShopScreenHandler extends AbstractContainerMenu {
     private final MoneyManager moneyManager;
     private final TowerRegistry towerRegistry;
     private final Player player;
+    private final IGameSession gameSession;
 
-    public ShopScreenHandler(int syncId, Inventory playerInventory, MoneyManager moneyManager, TowerRegistry towerRegistry) {
+    /** Full constructor: pass {@code gameSession} on the server, {@code null} for the client-side codec handler. */
+    public ShopScreenHandler(int syncId, Inventory playerInventory, MoneyManager moneyManager, TowerRegistry towerRegistry, IGameSession gameSession) {
         super(TowerDefenseMod.SHOP_SCREEN_HANDLER_TYPE, syncId);
         this.player = playerInventory.player;
         this.towerRegistry = towerRegistry;
         this.moneyManager = moneyManager;
+        this.gameSession = gameSession;
 
-        if (moneyManager != null && player instanceof ServerPlayer sp) {
-            GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-            MobUpgradeManager mgr = gm.getMobUpgradeManager();
-            PlayerState ps = gm.getPlayerState(sp);
-            int teamId = ps != null ? ps.getSide() : 1;
+        if (moneyManager != null && player instanceof ServerPlayer sp && gameSession != null) {
+            MobUpgradeManager mgr = gameSession.getMobUpgradeManager();
+            final int teamId = Math.max(1, gameSession.getTeamSide(sp.getUUID()));
 
-            TowerUpgradeManager towerMgr = gm.getTowerUpgradeManager();
-            TierManager tierMgr = gm.getTierManager();
+            TowerUpgradeManager towerMgr = gameSession.getTowerUpgradeManager();
+            TierManager tierMgr = gameSession.getTierManager();
             var towerRecipes = towerRegistry.getRecipesSortedByPrice();
             this.data = new ContainerData() {
                 @Override
@@ -118,46 +118,45 @@ public class ShopScreenHandler extends AbstractContainerMenu {
     public int getTierTicksRemaining() { return data.get(TIER_TICKS_REMAINING); }
 
     public boolean buyTowerUpgrade(int towerIndex) {
-        if (moneyManager == null) return false;
+        if (moneyManager == null || gameSession == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
 
         var recipes = towerRegistry.getRecipesSortedByPrice();
         if (towerIndex < 0 || towerIndex >= recipes.size()) return false;
 
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TowerUpgradeManager mgr = gm.getTowerUpgradeManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps == null || mgr == null) return false;
+        TowerUpgradeManager mgr = gameSession.getTowerUpgradeManager();
+        int teamId = gameSession.getTeamSide(serverPlayer.getUUID());
+        if (mgr == null || teamId < 0) return false;
 
         TowerType type = recipes.get(towerIndex).type();
-        int cost = mgr.getUpgradeCost(ps.getSide(), type);
+        int cost = mgr.getUpgradeCost(teamId, type);
         if (!moneyManager.canAfford(cost)) return false;
 
         moneyManager.spend(cost);
-        mgr.addLevel(ps.getSide(), type);
+        mgr.addLevel(teamId, type);
         return true;
     }
 
     public boolean buyTierUpgrade(int targetTier) {
-        if (moneyManager == null) return false;
+        if (moneyManager == null || gameSession == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
 
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps == null) return false;
+        TierManager tierMgr = gameSession.getTierManager();
+        int teamId = gameSession.getTeamSide(serverPlayer.getUUID());
+        if (teamId < 0) return false;
 
-        return tierMgr.buyTierUpgrade(serverPlayer, moneyManager, targetTier);
+        return tierMgr.buyTierUpgrade(serverPlayer, moneyManager, targetTier, teamId);
     }
 
     public boolean buyTower(TowerType type, int count) {
         if (moneyManager == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
 
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps != null && type.getTier() > tierMgr.getCurrentTier(ps.getSide())) return false;
+        if (gameSession != null) {
+            TierManager tierMgr = gameSession.getTierManager();
+            int teamSide = gameSession.getTeamSide(serverPlayer.getUUID());
+            if (teamSide >= 0 && type.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
+        }
 
         TowerRecipe recipe = null;
         for (TowerRecipe r : towerRegistry.getRecipes()) {
@@ -174,145 +173,92 @@ public class ShopScreenHandler extends AbstractContainerMenu {
         return true;
     }
 
-    public boolean buyWallBlock(int wallItemIndex, int count) {
-        if (moneyManager == null) return false;
-        if (!(player instanceof ServerPlayer serverPlayer)) return false;
+    /** Shared tier/money/inventory logic for all purchasable items. */
+    private boolean tryPurchase(Purchasable item, int count, ItemStack stack, ServerPlayer sp) {
+        if (gameSession != null) {
+            TierManager tierMgr = gameSession.getTierManager();
+            int teamSide = gameSession.getTeamSide(sp.getUUID());
+            if (teamSide >= 0 && item.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
+        }
+        int total = item.getPrice() * count;
+        if (!moneyManager.canAfford(total)) return false;
+        moneyManager.spend(total);
+        if (!sp.getInventory().add(stack)) sp.drop(stack, false);
+        return true;
+    }
 
+    public boolean buyWallBlock(int wallItemIndex, int count) {
+        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<WallShopItem> walls = WallShopItem.getAllSortedByPrice();
         if (wallItemIndex < 0 || wallItemIndex >= walls.size()) return false;
-
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps != null && walls.get(wallItemIndex).getTier() > tierMgr.getCurrentTier(ps.getSide())) return false;
-
         WallShopItem item = walls.get(wallItemIndex);
-        int totalCost = item.price() * count;
-        if (!moneyManager.canAfford(totalCost)) return false;
-
-        moneyManager.spend(totalCost);
-        ItemStack stack = new ItemStack(item.block().asItem(), count);
-        if (!serverPlayer.getInventory().add(stack)) serverPlayer.drop(stack, false);
-        return true;
+        return tryPurchase(item, count, new ItemStack(item.block().asItem(), count), sp);
     }
 
     public boolean buySpawner(int spawnerIndex, int count) {
-        if (moneyManager == null) return false;
-        if (!(player instanceof ServerPlayer serverPlayer)) return false;
-
+        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<SpawnerType> spawners = SpawnerType.getAllSortedByPrice();
         if (spawnerIndex < 0 || spawnerIndex >= spawners.size()) return false;
-
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps != null && spawners.get(spawnerIndex).getTier() > tierMgr.getCurrentTier(ps.getSide())) return false;
-
         SpawnerType type = spawners.get(spawnerIndex);
-        int totalCost = type.getPrice() * count;
-        if (!moneyManager.canAfford(totalCost)) return false;
-
-        moneyManager.spend(totalCost);
-        ItemStack stack = new ItemStack(type.getTriggerBlock().asItem(), count);
-        if (!serverPlayer.getInventory().add(stack)) serverPlayer.drop(stack, false);
-        return true;
+        ItemStack spawnerStack = new ItemStack(type.getTriggerBlock().asItem(), count);
+        spawnerStack.set(DataComponents.CUSTOM_NAME,
+                Component.literal(type.getName()).withStyle(ChatFormatting.AQUA));
+        return tryPurchase(type, count, spawnerStack, sp);
     }
 
     public boolean buyGenerator(int genIndex, int count) {
-        if (moneyManager == null) return false;
-        if (!(player instanceof ServerPlayer serverPlayer)) return false;
-
+        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<IncomeGeneratorType> gens = IncomeGeneratorType.getAllSortedByPrice();
         if (genIndex < 0 || genIndex >= gens.size()) return false;
-
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps != null && gens.get(genIndex).getTier() > tierMgr.getCurrentTier(ps.getSide())) return false;
-
         IncomeGeneratorType type = gens.get(genIndex);
-        int totalCost = type.getPrice() * count;
-        if (!moneyManager.canAfford(totalCost)) return false;
-
-        moneyManager.spend(totalCost);
-        ItemStack stack = new ItemStack(type.getTriggerBlock().asItem(), count);
-        if (!serverPlayer.getInventory().add(stack)) serverPlayer.drop(stack, false);
-        return true;
+        ItemStack genStack = new ItemStack(type.getTriggerBlock().asItem(), count);
+        genStack.set(DataComponents.CUSTOM_NAME,
+                Component.literal(type.getName()).withStyle(ChatFormatting.GOLD));
+        return tryPurchase(type, count, genStack, sp);
     }
 
     public boolean buyWeapon(int weaponIndex, int count) {
-        if (moneyManager == null) return false;
-        if (!(player instanceof ServerPlayer serverPlayer)) return false;
-
+        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<WeaponShopItem> weapons = WeaponShopItem.getAllSortedByPrice();
         if (weaponIndex < 0 || weaponIndex >= weapons.size()) return false;
-
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps != null && weapons.get(weaponIndex).getTier() > tierMgr.getCurrentTier(ps.getSide())) return false;
-
         WeaponShopItem weapon = weapons.get(weaponIndex);
-        int totalCost = weapon.price() * count;
-        if (!moneyManager.canAfford(totalCost)) return false;
-
-        moneyManager.spend(totalCost);
         ItemStack stack = new ItemStack(weapon.item(), count);
-
         if (weapon.enchanted()) {
-            var registry = serverPlayer.server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+            var registry = sp.server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
             Holder<Enchantment> sharpness = registry.getOrThrow(Enchantments.SHARPNESS);
             stack.enchant(sharpness, 5);
         }
-
-        if (!serverPlayer.getInventory().add(stack)) serverPlayer.drop(stack, false);
-        return true;
+        return tryPurchase(weapon, count, stack, sp);
     }
 
     public boolean buySpell(int spellIndex, int count) {
-        if (moneyManager == null) return false;
-        if (!(player instanceof ServerPlayer serverPlayer)) return false;
-
+        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<SpellType> spells = SpellType.getAllSortedByPrice();
         if (spellIndex < 0 || spellIndex >= spells.size()) return false;
-
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        TierManager tierMgr = gm.getTierManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps != null && spells.get(spellIndex).getTier() > tierMgr.getCurrentTier(ps.getSide())) return false;
-
         SpellType type = spells.get(spellIndex);
-        int totalCost = type.getPrice() * count;
-        if (!moneyManager.canAfford(totalCost)) return false;
-
-        moneyManager.spend(totalCost);
-
         ItemStack stack = new ItemStack(type.getItem(), count);
         stack.set(DataComponents.CUSTOM_NAME,
                 Component.literal(type.getName()).withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
-
-        if (!serverPlayer.getInventory().add(stack)) serverPlayer.drop(stack, false);
-        return true;
+        return tryPurchase(type, count, stack, sp);
     }
 
     public boolean buyUpgrade(int upgradeIndex) {
-        if (moneyManager == null) return false;
+        if (moneyManager == null || gameSession == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
 
         var entries = MobUpgradeManager.getAllUpgradeEntries();
         if (upgradeIndex < 0 || upgradeIndex >= entries.size()) return false;
 
-        GameManager gm = TowerDefenseMod.getInstance().getGameManager();
-        MobUpgradeManager mgr = gm.getMobUpgradeManager();
-        PlayerState ps = gm.getPlayerState(serverPlayer);
-        if (ps == null || mgr == null) return false;
+        MobUpgradeManager mgr = gameSession.getMobUpgradeManager();
+        int teamId = gameSession.getTeamSide(serverPlayer.getUUID());
+        if (mgr == null || teamId < 0) return false;
 
         var entry = entries.get(upgradeIndex);
-        int cost = mgr.getUpgradeCost(ps.getSide(), entry.mob(), entry.upgrade());
+        int cost = mgr.getUpgradeCost(teamId, entry.mob(), entry.upgrade());
         if (!moneyManager.canAfford(cost)) return false;
 
         moneyManager.spend(cost);
-        mgr.addLevel(ps.getSide(), entry.mob(), entry.upgrade());
+        mgr.addLevel(teamId, entry.mob(), entry.upgrade());
         return true;
     }
 
@@ -323,6 +269,7 @@ public class ShopScreenHandler extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
+        if (gameSession != null) return gameSession.isActive();
         return TowerDefenseMod.getInstance().getGameManager().isActive();
     }
 }

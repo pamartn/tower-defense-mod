@@ -4,9 +4,10 @@ import com.towerdefense.config.ConfigManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
+import com.towerdefense.shop.Purchasable;
 import java.util.List;
 
-public record WallShopItem(String name, Block block, int defaultPrice) {
+public record WallShopItem(String name, Block block, int defaultPrice) implements Purchasable {
 
     private static final List<WallShopItem> ITEMS = List.of(
             new WallShopItem("Wool Wall", Blocks.WHITE_WOOL, 4),
@@ -17,6 +18,9 @@ public record WallShopItem(String name, Block block, int defaultPrice) {
     public int price() {
         return ConfigManager.getInstance().getWallPrice(name);
     }
+
+    @Override
+    public int getPrice() { return price(); }
 
     public int getDefaultTier() {
         return switch (name) {

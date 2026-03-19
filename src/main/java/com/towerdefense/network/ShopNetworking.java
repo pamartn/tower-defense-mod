@@ -246,7 +246,7 @@ public class ShopNetworking {
                 player.openMenu(new ExtendedScreenHandlerFactory<Integer>() {
                     @Override public Component getDisplayName() { return Component.literal("Tower Shop"); }
                     @Override public AbstractContainerMenu createMenu(int syncId, Inventory inv, Player p) {
-                        return new ShopScreenHandler(syncId, inv, moneyManager, TowerDefenseMod.getInstance().getTowerRegistry());
+                        return new ShopScreenHandler(syncId, inv, moneyManager, TowerDefenseMod.getInstance().getTowerRegistry(), TowerDefenseMod.getInstance().getGameManager());
                     }
                     @Override public Integer getScreenOpeningData(ServerPlayer p) { return moneyManager.getMoney(); }
                 });

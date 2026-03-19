@@ -13,14 +13,40 @@ base {
 repositories {
 }
 
+sourceSets {
+    // JUnit unit tests — pure Java, no Minecraft server required
+    test {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+    // Fabric GameTest integration tests — run inside a real Minecraft server
+    testmod {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+}
+
 loom {
     splitEnvironmentSourceSets()
     accessWidenerPath = file("src/main/resources/towerdefense.accesswidener")
+
+    runs {
+        gameTestServer {
+            server()
+            name("Game Test Server")
+            source sourceSets.testmod
+            property "fabric.autoTest"
+            vmArgs "-ea"
+        }
+    }
 
     mods {
         "towerdefense" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
+        }
+        "towerdefense-testmod" {
+            sourceSet sourceSets.testmod
         }
     }
 }
@@ -31,6 +57,19 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     implementation "com.google.code.gson:gson:2.10.1"
+
+    // JUnit 5
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+    testImplementation sourceSets.main.output
+
+    // Fabric GameTest
+    testmodImplementation sourceSets.main.output
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {

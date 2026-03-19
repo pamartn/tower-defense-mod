@@ -268,10 +268,11 @@
   "spawnerEffects": {
     "spawnSpread": 2.0,
     "endermanTeleportRange": 8.0,
-    "witchHealBoxSize": 6,
-    "witchHealDurationTicks": 60,
-    "witchHealIntervalTicks": 120,
-    "witchHealAmount": 0.2,
+    "witchHealBoxSize": 10,
+    "witchHealIntervalTicks": 40,
+    "witchHealPercent": 0.05,
+    "witchHealMinPercent": 0.01,
+    "witchHealDecayFactor": 0.8,
     "followRange": 128.0,
     "specialMobTickInterval": 60
   },

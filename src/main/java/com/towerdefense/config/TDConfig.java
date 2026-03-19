@@ -121,10 +121,11 @@ public class TDConfig {
     public static class SpawnerEffectSection {
         public double spawnSpread = 2.0;
         public double endermanTeleportRange = 8;
-        public int witchHealBoxSize = 6;
-        public int witchHealDurationTicks = 60;
-        public int witchHealIntervalTicks = 120;
-        public double witchHealAmount = 0.2;
+        public int witchHealBoxSize = 10;
+        public int witchHealIntervalTicks = 40;
+        public double witchHealPercent = 0.05;    // base % of max HP per heal pass
+        public double witchHealMinPercent = 0.01; // floor after consecutive-heal decay
+        public double witchHealDecayFactor = 0.8; // multiplier per consecutive healed cycle
         public double followRange = 128.0;
         public int specialMobTickInterval = 60;
     }

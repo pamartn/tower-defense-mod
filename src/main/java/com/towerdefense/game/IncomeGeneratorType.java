@@ -4,9 +4,10 @@ import com.towerdefense.config.ConfigManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
+import com.towerdefense.shop.Purchasable;
 import java.util.List;
 
-public enum IncomeGeneratorType {
+public enum IncomeGeneratorType implements Purchasable {
 
     BASIC("Basic Generator", 25, 2, 10 * 20, Blocks.GOLD_BLOCK),
     ADVANCED("Advanced Generator", 60, 5, 10 * 20, Blocks.EMERALD_BLOCK),

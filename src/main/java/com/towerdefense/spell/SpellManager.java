@@ -109,10 +109,9 @@ public class SpellManager {
         GameManager gm = TowerDefenseMod.getInstance().getGameManager();
         int enemyTeamId = getEnemyTeamId(ps, gm);
 
-        String enemyOwnerTag = "td_owner_" + enemyTeamId;
         for (Mob mob : gm.getSpawnerManager().getAliveMobs()) {
             if (!mob.isAlive()) continue;
-            if (!mob.getTags().contains(enemyOwnerTag)) continue;
+            if (!com.towerdefense.wave.MobTags.isAllyOf(mob, enemyTeamId)) continue;
             mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ConfigManager.getInstance().getFreezeDurationTicks(), 127));
         }
 
@@ -141,12 +140,11 @@ public class SpellManager {
 
         BlockPos center = BlockPos.containing(target);
         int enemyTeamId = getEnemyTeamId(ps, TowerDefenseMod.getInstance().getGameManager());
-        String enemyTag = "td_owner_" + enemyTeamId;
         int boxSize = ConfigManager.getInstance().getLightningBoxSize();
         AABB killBox = AABB.ofSize(target, boxSize, boxSize, boxSize);
 
-        for (Entity e : world.getEntities((Entity) null, killBox, ent -> ent instanceof LivingEntity && ent.isAlive() && ent.getTags().contains("td_mob"))) {
-            if (!e.getTags().contains(enemyTag)) continue;
+        for (Entity e : world.getEntities((Entity) null, killBox, ent -> ent instanceof LivingEntity && ent.isAlive() && ent.getTags().contains(com.towerdefense.wave.MobTags.MOB))) {
+            if (!com.towerdefense.wave.MobTags.isAllyOf(e, enemyTeamId)) continue;
             ((LivingEntity) e).hurt(world.damageSources().magic(), ConfigManager.getInstance().getLightningDamage());
         }
 
@@ -195,10 +193,9 @@ public class SpellManager {
                 world.playSound(null, BlockPos.containing(spawnPos), SoundEvents.GHAST_SHOOT, SoundSource.HOSTILE, 1.5f, 1.0f);
             }
             case FREEZE_BOMB -> {
-                String enemyTag = "td_owner_" + enemyTeamId;
                 for (Mob mob : gm.getSpawnerManager().getAliveMobs()) {
                     if (!mob.isAlive()) continue;
-                    if (!mob.getTags().contains(enemyTag)) continue;
+                    if (!com.towerdefense.wave.MobTags.isAllyOf(mob, enemyTeamId)) continue;
                     mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ConfigManager.getInstance().getFreezeDurationTicks(), 127));
                 }
                 world.playSound(null, team.getNexusCenter(), SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.5f, 0.5f);
@@ -216,11 +213,10 @@ public class SpellManager {
                     bolt.setVisualOnly(true);
                     world.addFreshEntity(bolt);
                 }
-                String enemyTag = "td_owner_" + enemyTeamId;
                 int boxSize = ConfigManager.getInstance().getLightningBoxSize();
                 AABB killBox = AABB.ofSize(target, boxSize, boxSize, boxSize);
-                for (Entity e : world.getEntities((Entity) null, killBox, ent -> ent instanceof LivingEntity && ent.isAlive() && ent.getTags().contains("td_mob"))) {
-                    if (!e.getTags().contains(enemyTag)) continue;
+                for (Entity e : world.getEntities((Entity) null, killBox, ent -> ent instanceof LivingEntity && ent.isAlive() && ent.getTags().contains(com.towerdefense.wave.MobTags.MOB))) {
+                    if (!com.towerdefense.wave.MobTags.isAllyOf(e, enemyTeamId)) continue;
                     ((LivingEntity) e).hurt(world.damageSources().magic(), ConfigManager.getInstance().getLightningDamage());
                 }
                 world.playSound(null, enemyNexus, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.HOSTILE, 2.0f, 1.0f);

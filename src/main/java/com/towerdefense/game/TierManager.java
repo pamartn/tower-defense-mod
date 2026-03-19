@@ -4,6 +4,7 @@ import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.arena.NexusManager;
 import com.towerdefense.config.ConfigManager;
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -110,9 +111,8 @@ public class TierManager {
         unlockTicksRemaining.remove(teamId);
     }
 
-    public void tick() {
-        var gm = TowerDefenseMod.getInstance().getGameManager();
-        if (gm == null || gm.getTeam1() == null || gm.getTeam2() == null) return;
+    public void tick(@Nullable TeamState team1, @Nullable TeamState team2) {
+        if (team1 == null || team2 == null) return;
 
         for (int teamId : new int[]{1, 2}) {
             int remaining = unlockTicksRemaining.getOrDefault(teamId, 0);
@@ -126,12 +126,10 @@ public class TierManager {
                 unlockTicksRemaining.remove(teamId);
                 currentTier.put(teamId, tier);
 
-                TeamState team = teamId == 1 ? gm.getTeam1() : gm.getTeam2();
-                if (team != null) {
-                    NexusManager nexus = team.getNexusManager();
-                    nexus.addMaxHpBonus(50);
-                    nexus.heal(50);
-                }
+                TeamState team = teamId == 1 ? team1 : team2;
+                NexusManager nexus = team.getNexusManager();
+                nexus.addMaxHpBonus(50);
+                nexus.heal(50);
             }
         }
     }
