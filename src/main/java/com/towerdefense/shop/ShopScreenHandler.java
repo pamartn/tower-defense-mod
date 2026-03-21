@@ -117,6 +117,61 @@ public class ShopScreenHandler extends AbstractContainerMenu {
     public int getTierPending() { return data.get(TIER_PENDING); }
     public int getTierTicksRemaining() { return data.get(TIER_TICKS_REMAINING); }
 
+    // ─── Public factory methods for block items ───
+
+    public static ItemStack createSpawnerItem(SpawnerType type) {
+        ItemStack s = new ItemStack(type.getTriggerBlock().asItem(), 1);
+        s.set(DataComponents.CUSTOM_NAME, Component.literal(type.getName() + " ($" + type.getPrice() + ")").withStyle(ChatFormatting.AQUA));
+        s.set(DataComponents.MAX_STACK_SIZE, 1);
+        return s;
+    }
+
+    public static ItemStack createGeneratorItem(IncomeGeneratorType type) {
+        ItemStack s = new ItemStack(type.getTriggerBlock().asItem(), 1);
+        s.set(DataComponents.CUSTOM_NAME, Component.literal(type.getName() + " ($" + type.getPrice() + ")").withStyle(ChatFormatting.GOLD));
+        s.set(DataComponents.MAX_STACK_SIZE, 1);
+        return s;
+    }
+
+    public static ItemStack createWallItem(WallShopItem item) {
+        ItemStack s = new ItemStack(item.block().asItem(), 1);
+        s.set(DataComponents.CUSTOM_NAME, Component.literal(item.name() + " ($" + item.price() + ")").withStyle(ChatFormatting.WHITE));
+        s.set(DataComponents.MAX_STACK_SIZE, 1);
+        return s;
+    }
+
+    // ─── Private helpers ───
+
+    private void giveItem(ItemStack stack, ServerPlayer sp, boolean pick) {
+        if (pick) {
+            int sel = sp.getInventory().selected;
+            ItemStack held = sp.getInventory().getItem(sel);
+            if (!isProtectedItem(held)) {
+                sp.getInventory().setItem(sel, stack);
+                return;
+            }
+        }
+        addToHotbar(stack, sp);
+    }
+
+    private void addToHotbar(ItemStack stack, ServerPlayer sp) {
+        for (int i = 0; i < 9; i++) {
+            if (sp.getInventory().getItem(i).isEmpty()) {
+                sp.getInventory().setItem(i, stack);
+                return;
+            }
+        }
+        if (!sp.getInventory().add(stack)) sp.drop(stack, false);
+    }
+
+    private boolean isProtectedItem(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return stack.getItem() instanceof net.minecraft.world.item.PickaxeItem
+            || stack.getItem() instanceof net.minecraft.world.item.SwordItem;
+    }
+
+    // ─── Buy methods ───
+
     public boolean buyTowerUpgrade(int towerIndex) {
         if (moneyManager == null || gameSession == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
@@ -148,7 +203,7 @@ public class ShopScreenHandler extends AbstractContainerMenu {
         return tierMgr.buyTierUpgrade(serverPlayer, moneyManager, targetTier, teamId);
     }
 
-    public boolean buyTower(TowerType type, int count) {
+    public boolean buyTower(TowerType type, boolean pick) {
         if (moneyManager == null) return false;
         if (!(player instanceof ServerPlayer serverPlayer)) return false;
 
@@ -164,82 +219,102 @@ public class ShopScreenHandler extends AbstractContainerMenu {
         }
         if (recipe == null) return false;
 
-        int totalCost = recipe.price() * count;
-        if (!moneyManager.canAfford(totalCost)) return false;
-
-        moneyManager.spend(totalCost);
-        ItemStack towerBlock = PlayerKit.createTowerBlock(recipe, count);
-        if (!serverPlayer.getInventory().add(towerBlock)) serverPlayer.drop(towerBlock, false);
+        ItemStack towerBlock = PlayerKit.createTowerBlock(recipe);
+        giveItem(towerBlock, serverPlayer, pick);
         return true;
     }
 
-    /** Shared tier/money/inventory logic for all purchasable items. */
-    private boolean tryPurchase(Purchasable item, int count, ItemStack stack, ServerPlayer sp) {
+    public boolean buyWallBlock(int wallItemIndex, boolean pick) {
+        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
+        List<WallShopItem> walls = WallShopItem.getAllSortedByPrice();
+        if (wallItemIndex < 0 || wallItemIndex >= walls.size()) return false;
+        WallShopItem item = walls.get(wallItemIndex);
+
         if (gameSession != null) {
             TierManager tierMgr = gameSession.getTierManager();
             int teamSide = gameSession.getTeamSide(sp.getUUID());
             if (teamSide >= 0 && item.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
         }
-        int total = item.getPrice() * count;
-        if (!moneyManager.canAfford(total)) return false;
-        moneyManager.spend(total);
-        if (!sp.getInventory().add(stack)) sp.drop(stack, false);
+
+        giveItem(createWallItem(item), sp, pick);
         return true;
     }
 
-    public boolean buyWallBlock(int wallItemIndex, int count) {
-        if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
-        List<WallShopItem> walls = WallShopItem.getAllSortedByPrice();
-        if (wallItemIndex < 0 || wallItemIndex >= walls.size()) return false;
-        WallShopItem item = walls.get(wallItemIndex);
-        return tryPurchase(item, count, new ItemStack(item.block().asItem(), count), sp);
-    }
-
-    public boolean buySpawner(int spawnerIndex, int count) {
+    public boolean buySpawner(int spawnerIndex, boolean pick) {
         if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<SpawnerType> spawners = SpawnerType.getAllSortedByPrice();
         if (spawnerIndex < 0 || spawnerIndex >= spawners.size()) return false;
         SpawnerType type = spawners.get(spawnerIndex);
-        ItemStack spawnerStack = new ItemStack(type.getTriggerBlock().asItem(), count);
-        spawnerStack.set(DataComponents.CUSTOM_NAME,
-                Component.literal(type.getName()).withStyle(ChatFormatting.AQUA));
-        return tryPurchase(type, count, spawnerStack, sp);
+
+        if (gameSession != null) {
+            TierManager tierMgr = gameSession.getTierManager();
+            int teamSide = gameSession.getTeamSide(sp.getUUID());
+            if (teamSide >= 0 && type.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
+        }
+
+        giveItem(createSpawnerItem(type), sp, pick);
+        return true;
     }
 
-    public boolean buyGenerator(int genIndex, int count) {
+    public boolean buyGenerator(int genIndex, boolean pick) {
         if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<IncomeGeneratorType> gens = IncomeGeneratorType.getAllSortedByPrice();
         if (genIndex < 0 || genIndex >= gens.size()) return false;
         IncomeGeneratorType type = gens.get(genIndex);
-        ItemStack genStack = new ItemStack(type.getTriggerBlock().asItem(), count);
-        genStack.set(DataComponents.CUSTOM_NAME,
-                Component.literal(type.getName()).withStyle(ChatFormatting.GOLD));
-        return tryPurchase(type, count, genStack, sp);
+
+        if (gameSession != null) {
+            TierManager tierMgr = gameSession.getTierManager();
+            int teamSide = gameSession.getTeamSide(sp.getUUID());
+            if (teamSide >= 0 && type.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
+        }
+
+        giveItem(createGeneratorItem(type), sp, pick);
+        return true;
     }
 
-    public boolean buyWeapon(int weaponIndex, int count) {
+    public boolean buyWeapon(int weaponIndex, boolean pick) {
         if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<WeaponShopItem> weapons = WeaponShopItem.getAllSortedByPrice();
         if (weaponIndex < 0 || weaponIndex >= weapons.size()) return false;
         WeaponShopItem weapon = weapons.get(weaponIndex);
-        ItemStack stack = new ItemStack(weapon.item(), count);
+
+        if (gameSession != null) {
+            TierManager tierMgr = gameSession.getTierManager();
+            int teamSide = gameSession.getTeamSide(sp.getUUID());
+            if (teamSide >= 0 && weapon.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
+        }
+        if (!moneyManager.canAfford(weapon.price())) return false;
+
+        ItemStack stack = new ItemStack(weapon.item(), 1);
         if (weapon.enchanted()) {
             var registry = sp.server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
             Holder<Enchantment> sharpness = registry.getOrThrow(Enchantments.SHARPNESS);
             stack.enchant(sharpness, 5);
         }
-        return tryPurchase(weapon, count, stack, sp);
+        moneyManager.spend(weapon.price());
+        giveItem(stack, sp, pick);
+        return true;
     }
 
-    public boolean buySpell(int spellIndex, int count) {
+    public boolean buySpell(int spellIndex, boolean pick) {
         if (moneyManager == null || !(player instanceof ServerPlayer sp)) return false;
         List<SpellType> spells = SpellType.getAllSortedByPrice();
         if (spellIndex < 0 || spellIndex >= spells.size()) return false;
         SpellType type = spells.get(spellIndex);
-        ItemStack stack = new ItemStack(type.getItem(), count);
+
+        if (gameSession != null) {
+            TierManager tierMgr = gameSession.getTierManager();
+            int teamSide = gameSession.getTeamSide(sp.getUUID());
+            if (teamSide >= 0 && type.getTier() > tierMgr.getCurrentTier(teamSide)) return false;
+        }
+        if (!moneyManager.canAfford(type.getPrice())) return false;
+
+        ItemStack stack = new ItemStack(type.getItem(), 1);
         stack.set(DataComponents.CUSTOM_NAME,
                 Component.literal(type.getName()).withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
-        return tryPurchase(type, count, stack, sp);
+        moneyManager.spend(type.getPrice());
+        giveItem(stack, sp, pick);
+        return true;
     }
 
     public boolean buyUpgrade(int upgradeIndex) {

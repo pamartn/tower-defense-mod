@@ -6,28 +6,28 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public class ShopClientNetworking {
 
-    public static void sendBuyPacket(TowerType type, int quantity) {
-        ClientPlayNetworking.send(new ShopNetworking.ShopBuyPayload(type.ordinal(), quantity));
+    public static void sendBuyPacket(TowerType type, boolean pick) {
+        ClientPlayNetworking.send(new ShopNetworking.ShopBuyPayload(type.ordinal(), pick));
     }
 
-    public static void sendWallBuyPacket(int wallItemIndex, int quantity) {
-        ClientPlayNetworking.send(new ShopNetworking.WallBuyPayload(wallItemIndex, quantity));
+    public static void sendWallBuyPacket(int wallItemIndex, boolean pick) {
+        ClientPlayNetworking.send(new ShopNetworking.WallBuyPayload(wallItemIndex, pick));
     }
 
-    public static void sendSpawnerBuyPacket(int spawnerIndex, int quantity) {
-        ClientPlayNetworking.send(new ShopNetworking.SpawnerBuyPayload(spawnerIndex, quantity));
+    public static void sendSpawnerBuyPacket(int spawnerIndex, boolean pick) {
+        ClientPlayNetworking.send(new ShopNetworking.SpawnerBuyPayload(spawnerIndex, pick));
     }
 
-    public static void sendGeneratorBuyPacket(int genIndex, int quantity) {
-        ClientPlayNetworking.send(new ShopNetworking.GeneratorBuyPayload(genIndex, quantity));
+    public static void sendGeneratorBuyPacket(int genIndex, boolean pick) {
+        ClientPlayNetworking.send(new ShopNetworking.GeneratorBuyPayload(genIndex, pick));
     }
 
-    public static void sendWeaponBuyPacket(int weaponIndex, int quantity) {
-        ClientPlayNetworking.send(new ShopNetworking.WeaponBuyPayload(weaponIndex, quantity));
+    public static void sendWeaponBuyPacket(int weaponIndex, boolean pick) {
+        ClientPlayNetworking.send(new ShopNetworking.WeaponBuyPayload(weaponIndex, pick));
     }
 
-    public static void sendSpellBuyPacket(int spellIndex, int quantity) {
-        ClientPlayNetworking.send(new ShopNetworking.SpellBuyPayload(spellIndex, quantity));
+    public static void sendSpellBuyPacket(int spellIndex, boolean pick) {
+        ClientPlayNetworking.send(new ShopNetworking.SpellBuyPayload(spellIndex, pick));
     }
 
     public static void sendUpgradeBuyPacket(int upgradeIndex) {

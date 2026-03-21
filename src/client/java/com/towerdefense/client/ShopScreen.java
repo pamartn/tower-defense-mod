@@ -32,17 +32,18 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
 
     private static final int ROW_H = 22;
     private static final int NAME_W = 130;
-    private static final int X5_W = 26;
-    private static final int MAX_W = 36;
+    private static final int ADD_W = 30;
+    private static final int PICK_W = 36;
     private static final int UPGRADE_BTN_W = 48;
     private static final int TOWER_UPGRADE_BTN_W = 90;
     private static final int GAP = 3;
     private static final int SECTION_GAP = 14;
     private static final int LABEL_H = 12;
-    private static final int STATS_X_OFFSET = NAME_W + GAP + X5_W + GAP + MAX_W + 6;
-    private static final int TOWER_STATS_X_OFFSET = NAME_W + GAP + X5_W + GAP + MAX_W + GAP + TOWER_UPGRADE_BTN_W + 12;
-    private static final int SPAWNER_STATS_X_OFFSET = NAME_W + GAP + X5_W + GAP + MAX_W + GAP + UPGRADE_BTN_W * 3 + GAP * 2 + 12;
+    private static final int STATS_X_OFFSET = NAME_W + GAP + ADD_W + GAP + PICK_W + 6;
+    private static final int TOWER_STATS_X_OFFSET = NAME_W + GAP + ADD_W + GAP + PICK_W + GAP + TOWER_UPGRADE_BTN_W + 12;
+    private static final int SPAWNER_STATS_X_OFFSET = NAME_W + GAP + ADD_W + GAP + PICK_W + GAP + UPGRADE_BTN_W * 3 + GAP * 2 + 12;
 
+    // shopButtons now holds 2 per row: [Add, Pick] per shop row
     private final List<Button> shopButtons = new ArrayList<>();
     private final List<Button> spellButtons = new ArrayList<>();
     private final List<Button> weaponButtons = new ArrayList<>();
@@ -102,7 +103,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         int cx = centerPanelX + 10;
         int cy = panelTopY + 40;
 
-        // ─── Left panel: Spells + Weapons (all items) ───
+        // ─── Left panel: Spells + Weapons ───
         int lx = leftPanelX + 6;
         int ly = panelTopY + LABEL_H + 8;
 
@@ -117,15 +118,19 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         for (int i = 0; i < WeaponShopItem.getAllSortedByPrice().size(); i++) {
             final int idx = i;
             WeaponShopItem w = WeaponShopItem.getAllSortedByPrice().get(i);
-            Button btn = Button.builder(Component.literal(w.name() + " $" + w.price()),
-                    b -> buyWeapon(idx, 1))
-                    .bounds(lx, ly, LEFT_W - 12, ROW_H - 2).build();
-            this.addRenderableWidget(btn);
-            weaponButtons.add(btn);
+            int btnW = (LEFT_W - 12 - GAP) / 2;
+            Button bAdd = Button.builder(Component.literal("Add"), b -> buyWeapon(idx, false))
+                    .bounds(lx, ly, btnW, ROW_H - 2).build();
+            Button bPick = Button.builder(Component.literal("Pick"), b -> buyWeapon(idx, true))
+                    .bounds(lx + btnW + GAP, ly, btnW, ROW_H - 2).build();
+            this.addRenderableWidget(bAdd);
+            this.addRenderableWidget(bPick);
+            weaponButtons.add(bAdd);
+            weaponButtons.add(bPick);
             ly += ROW_H + 14;
         }
 
-        // ─── Center panel (shop, all items) ───
+        // ─── Center panel ───
         for (int i = 0; i < TowerDefenseMod.getInstance().getTowerRegistry().getRecipesSortedByPrice().size(); i++) {
             final int idx = i;
             TowerRecipe r = TowerDefenseMod.getInstance().getTowerRegistry().getRecipesSortedByPrice().get(i);
@@ -137,8 +142,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         for (int i = 0; i < WallShopItem.getAllSortedByPrice().size(); i++) {
             final int idx = i;
             WallShopItem w = WallShopItem.getAllSortedByPrice().get(i);
-            addShopRow(cx, cy, w.name() + " $" + w.price(),
-                    btn -> buyWall(idx, 1), btn -> buyWall(idx, 5), btn -> buyWallMax(idx));
+            addShopRow(cx, cy, w.name(), btn -> buyWall(idx, false), btn -> buyWall(idx, true));
             cy += ROW_H;
         }
         cy += SECTION_GAP + LABEL_H;
@@ -154,8 +158,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         for (int i = 0; i < IncomeGeneratorType.getAllSortedByPrice().size(); i++) {
             final int idx = i;
             IncomeGeneratorType g = IncomeGeneratorType.getAllSortedByPrice().get(i);
-            addShopRow(cx, cy, g.getName() + " $" + g.getPrice(),
-                    btn -> buyGenerator(idx, 1), btn -> buyGenerator(idx, 5), btn -> buyGeneratorMax(idx));
+            addShopRow(cx, cy, g.getName(), btn -> buyGenerator(idx, false), btn -> buyGenerator(idx, true));
             cy += ROW_H;
         }
 
@@ -175,20 +178,20 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         updateButtonStates();
     }
 
-    private void addSpellRow(int x, int y, SpellType sp, int idx) {
-        int btnW = LEFT_W - 12;
-        Button btn = Button.builder(Component.literal(sp.getName() + " $" + sp.getPrice()),
-                b -> buySpell(idx, 1))
-                .bounds(x, y, btnW, ROW_H - 2).build();
-        this.addRenderableWidget(btn);
-        spellButtons.add(btn);
+    /** Adds an Add + Pick button pair for a shop row. Tracked in shopButtons (2 per row). */
+    private void addShopRow(int x, int y, String label, Button.OnPress addAction, Button.OnPress pickAction) {
+        Button bAdd = Button.builder(Component.literal("Add"), addAction).bounds(x + NAME_W + GAP, y, ADD_W, ROW_H - 2).build();
+        Button bPick = Button.builder(Component.literal("Pick"), pickAction).bounds(x + NAME_W + GAP + ADD_W + GAP, y, PICK_W, ROW_H - 2).build();
+        this.addRenderableWidget(bAdd);
+        this.addRenderableWidget(bPick);
+        shopButtons.add(bAdd);
+        shopButtons.add(bPick);
     }
 
     private void addTowerRow(int x, int y, TowerRecipe r, int idx) {
-        int baseX = x + NAME_W + GAP + X5_W + GAP + MAX_W + GAP;
+        int baseX = x + NAME_W + GAP + ADD_W + GAP + PICK_W + GAP;
         int beforeSize = shopButtons.size();
-        addShopRow(x, y, r.name() + " $" + r.price(),
-                btn -> buyTower(idx, 1), btn -> buyTower(idx, 5), btn -> buyTowerMax(idx));
+        addShopRow(x, y, r.name(), btn -> buyTower(idx, false), btn -> buyTower(idx, true));
         towerTooltipButtons.add(Map.entry(r.type(), shopButtons.get(beforeSize)));
         Button ub = Button.builder(Component.literal("UP"), b -> buyTowerUpgrade(idx))
                 .bounds(baseX, y, TOWER_UPGRADE_BTN_W, ROW_H - 2).build();
@@ -197,11 +200,10 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
     }
 
     private void addSpawnerRow(int x, int y, SpawnerType s, int idx) {
-        int baseX = x + NAME_W + GAP + X5_W + GAP + MAX_W + GAP;
+        int baseX = x + NAME_W + GAP + ADD_W + GAP + PICK_W + GAP;
         int mobOrd = s.getMobType().ordinal();
         int beforeSize = shopButtons.size();
-        addShopRow(x, y, s.getName() + " $" + s.getPrice(),
-                btn -> buySpawner(idx, 1), btn -> buySpawner(idx, 5), btn -> buySpawnerMax(idx));
+        addShopRow(x, y, s.getName(), btn -> buySpawner(idx, false), btn -> buySpawner(idx, true));
         if (spawnerSpecialTooltip(s) != null) {
             spawnerTooltipButtons.add(Map.entry(s, shopButtons.get(beforeSize)));
         }
@@ -213,6 +215,18 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             this.addRenderableWidget(ub);
             spawnerUpgradeButtons.add(new UpgradeBtn(ub, upgradeIdx));
         }
+    }
+
+    private void addSpellRow(int x, int y, SpellType sp, int idx) {
+        int btnW = (LEFT_W - 12 - GAP) / 2;
+        Button bAdd = Button.builder(Component.literal("Add"), b -> buySpell(idx, false))
+                .bounds(x, y, btnW, ROW_H - 2).build();
+        Button bPick = Button.builder(Component.literal("Pick"), b -> buySpell(idx, true))
+                .bounds(x + btnW + GAP, y, btnW, ROW_H - 2).build();
+        this.addRenderableWidget(bAdd);
+        this.addRenderableWidget(bPick);
+        spellButtons.add(bAdd);
+        spellButtons.add(bPick);
     }
 
     private List<Component> spawnerSpecialTooltip(SpawnerType s) {
@@ -293,18 +307,6 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         };
     }
 
-    private void addShopRow(int x, int y, String label, Button.OnPress buy1, Button.OnPress buy5, Button.OnPress buyMax) {
-        Button b1 = Button.builder(Component.literal(label), buy1).bounds(x, y, NAME_W, ROW_H - 2).build();
-        Button b5 = Button.builder(Component.literal("x5"), buy5).bounds(x + NAME_W + GAP, y, X5_W, ROW_H - 2).build();
-        Button bMax = Button.builder(Component.literal("MAX"), buyMax).bounds(x + NAME_W + GAP + X5_W + GAP, y, MAX_W, ROW_H - 2).build();
-        this.addRenderableWidget(b1);
-        this.addRenderableWidget(b5);
-        this.addRenderableWidget(bMax);
-        shopButtons.add(b1);
-        shopButtons.add(b5);
-        shopButtons.add(bMax);
-    }
-
     @Override
     protected void containerTick() {
         updateButtonStates();
@@ -316,37 +318,41 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         int tier = Math.max(1, menu.getTierCurrent());
         int pending = menu.getTierPending();
 
-        // Shop items: active only if tier unlocked AND enough money
+        // shopButtons has 2 per row (Add + Pick). Tier check only for blocks.
         int idx = 0;
         for (TowerRecipe r : TowerDefenseMod.getInstance().getTowerRegistry().getRecipesSortedByPrice()) {
-            boolean tierOk = r.type().getTier() <= tier;
-            setTriple(idx, tierOk, money >= r.price(), r.type().getTier());
-            idx += 3;
+            setPair(idx, r.type().getTier() <= tier);
+            idx += 2;
         }
         for (WallShopItem w : WallShopItem.getAllSortedByPrice()) {
-            boolean tierOk = w.getTier() <= tier;
-            setTriple(idx, tierOk, money >= w.price(), w.getTier());
-            idx += 3;
+            setPair(idx, w.getTier() <= tier);
+            idx += 2;
         }
         for (SpawnerType s : SpawnerType.getAllSortedByPrice()) {
-            boolean tierOk = s.getTier() <= tier;
-            setTriple(idx, tierOk, money >= s.getPrice(), s.getTier());
-            idx += 3;
+            setPair(idx, s.getTier() <= tier);
+            idx += 2;
         }
         for (IncomeGeneratorType g : IncomeGeneratorType.getAllSortedByPrice()) {
-            boolean tierOk = g.getTier() <= tier;
-            setTriple(idx, tierOk, money >= g.getPrice(), g.getTier());
-            idx += 3;
+            setPair(idx, g.getTier() <= tier);
+            idx += 2;
         }
 
-        for (int i = 0; i < spellButtons.size(); i++) {
-            SpellType sp = SpellType.getAllSortedByPrice().get(i);
-            spellButtons.get(i).active = sp.getTier() <= tier && money >= sp.getPrice();
+        // spellButtons: 2 per spell (Add + Pick)
+        var spells = SpellType.getAllSortedByPrice();
+        for (int i = 0; i < spells.size(); i++) {
+            SpellType sp = spells.get(i);
+            boolean active = sp.getTier() <= tier && money >= sp.getPrice();
+            if (i * 2 < spellButtons.size()) spellButtons.get(i * 2).active = active;
+            if (i * 2 + 1 < spellButtons.size()) spellButtons.get(i * 2 + 1).active = active;
         }
 
-        for (int i = 0; i < weaponButtons.size(); i++) {
-            WeaponShopItem w = WeaponShopItem.getAllSortedByPrice().get(i);
-            weaponButtons.get(i).active = w.getTier() <= tier && money >= w.price();
+        // weaponButtons: 2 per weapon (Add + Pick)
+        var weapons = WeaponShopItem.getAllSortedByPrice();
+        for (int i = 0; i < weapons.size(); i++) {
+            WeaponShopItem w = weapons.get(i);
+            boolean active = w.getTier() <= tier && money >= w.price();
+            if (i * 2 < weaponButtons.size()) weaponButtons.get(i * 2).active = active;
+            if (i * 2 + 1 < weaponButtons.size()) weaponButtons.get(i * 2 + 1).active = active;
         }
 
         for (UpgradeBtn ub : spawnerUpgradeButtons) {
@@ -375,7 +381,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             ub.button().setMessage(Component.literal("UP Lv" + (level + 1) + " $" + cost));
         }
 
-        // Single next-tier button: show only when no pending and tier < 3
+        // Single next-tier button
         if (nextTierButton != null) {
             if (tier >= 3 || pending > 0) {
                 nextTierButton.visible = false;
@@ -390,67 +396,42 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         }
     }
 
-    private void setTriple(int startIdx, boolean tierOk, boolean affordable, int requiredTier) {
-        boolean active = tierOk && affordable;
+    private void setPair(int startIdx, boolean active) {
         if (startIdx < shopButtons.size()) shopButtons.get(startIdx).active = active;
-        if (startIdx + 1 < shopButtons.size()) {
-            Button b = shopButtons.get(startIdx + 1);
-            b.active = active;
-            b.setMessage(Component.literal(tierOk ? "x5" : "T" + requiredTier));
-        }
-        if (startIdx + 2 < shopButtons.size()) {
-            Button b = shopButtons.get(startIdx + 2);
-            b.active = active;
-            b.setMessage(Component.literal(tierOk ? "MAX" : "T" + requiredTier));
-        }
+        if (startIdx + 1 < shopButtons.size()) shopButtons.get(startIdx + 1).active = active;
     }
 
     // ─── Buy actions ───
 
-    private void buyTower(int idx, int qty) {
+    private void buyTower(int idx, boolean pick) {
         var t = TowerDefenseMod.getInstance().getTowerRegistry().getRecipesSortedByPrice();
         if (idx >= t.size()) return;
-        int q = Math.min(qty, Math.min(64, menu.getMoney() / Math.max(1, t.get(idx).price())));
-        if (q > 0) ShopClientNetworking.sendBuyPacket(t.get(idx).type(), q);
-    }
-    private void buyTowerMax(int idx) { buyTower(idx, 64); }
-
-    private void buyWall(int idx, int qty) {
-        var w = WallShopItem.getAllSortedByPrice();
-        if (idx >= w.size()) return;
-        int q = Math.min(qty, Math.min(64, menu.getMoney() / Math.max(1, w.get(idx).price())));
-        if (q > 0) ShopClientNetworking.sendWallBuyPacket(idx, q);
-    }
-    private void buyWallMax(int idx) { buyWall(idx, 64); }
-
-    private void buySpawner(int idx, int qty) {
-        var s = SpawnerType.getAllSortedByPrice();
-        if (idx >= s.size()) return;
-        int q = Math.min(qty, Math.min(64, menu.getMoney() / Math.max(1, s.get(idx).getPrice())));
-        if (q > 0) ShopClientNetworking.sendSpawnerBuyPacket(idx, q);
-    }
-    private void buySpawnerMax(int idx) { buySpawner(idx, 64); }
-
-    private void buyGenerator(int idx, int qty) {
-        var g = IncomeGeneratorType.getAllSortedByPrice();
-        if (idx >= g.size()) return;
-        int q = Math.min(qty, Math.min(64, menu.getMoney() / Math.max(1, g.get(idx).getPrice())));
-        if (q > 0) ShopClientNetworking.sendGeneratorBuyPacket(idx, q);
-    }
-    private void buyGeneratorMax(int idx) { buyGenerator(idx, 64); }
-
-    private void buySpell(int idx, int qty) {
-        var s = SpellType.getAllSortedByPrice();
-        if (idx >= s.size()) return;
-        int q = Math.min(qty, Math.min(64, menu.getMoney() / Math.max(1, s.get(idx).getPrice())));
-        if (q > 0) ShopClientNetworking.sendSpellBuyPacket(idx, q);
+        ShopClientNetworking.sendBuyPacket(t.get(idx).type(), pick);
     }
 
-    private void buyWeapon(int idx, int qty) {
-        var w = WeaponShopItem.getAllSortedByPrice();
-        if (idx >= w.size()) return;
-        int q = Math.min(qty, Math.min(64, menu.getMoney() / Math.max(1, w.get(idx).price())));
-        if (q > 0) ShopClientNetworking.sendWeaponBuyPacket(idx, q);
+    private void buyWall(int idx, boolean pick) {
+        if (idx >= WallShopItem.getAllSortedByPrice().size()) return;
+        ShopClientNetworking.sendWallBuyPacket(idx, pick);
+    }
+
+    private void buySpawner(int idx, boolean pick) {
+        if (idx >= SpawnerType.getAllSortedByPrice().size()) return;
+        ShopClientNetworking.sendSpawnerBuyPacket(idx, pick);
+    }
+
+    private void buyGenerator(int idx, boolean pick) {
+        if (idx >= IncomeGeneratorType.getAllSortedByPrice().size()) return;
+        ShopClientNetworking.sendGeneratorBuyPacket(idx, pick);
+    }
+
+    private void buySpell(int idx, boolean pick) {
+        if (idx >= SpellType.getAllSortedByPrice().size()) return;
+        ShopClientNetworking.sendSpellBuyPacket(idx, pick);
+    }
+
+    private void buyWeapon(int idx, boolean pick) {
+        if (idx >= WeaponShopItem.getAllSortedByPrice().size()) return;
+        ShopClientNetworking.sendWeaponBuyPacket(idx, pick);
     }
 
     private void buyUpgrade(int idx) { ShopClientNetworking.sendUpgradeBuyPacket(idx); }
@@ -480,6 +461,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
 
         int statsX = centerPanelX + 10 + STATS_X_OFFSET;
         int towerStatsX = centerPanelX + 10 + TOWER_STATS_X_OFFSET;
+        int cx = centerPanelX + 10;
 
         // ─── Left panel (Spells + Weapons) ───
         graphics.drawCenteredString(this.font, "SPELLS", leftPanelX + LEFT_W / 2, panelTopY + 3, 0xFF5555);
@@ -487,6 +469,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         graphics.enableScissor(leftPanelX, panelTopY, leftPanelX + LEFT_W, panelTopY + centerHeight);
         int sy = panelTopY + LABEL_H + 8;
         for (SpellType sp : SpellType.getAllSortedByPrice()) {
+            graphics.drawString(this.font, sp.getName() + " $" + sp.getPrice(), leftPanelX + 6, sy + 3, 0xFFFFFF);
             graphics.drawString(this.font, sp.getDescription(), leftPanelX + 6, sy + ROW_H, 0x888888);
             sy += ROW_H + 10;
         }
@@ -494,6 +477,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         graphics.drawString(this.font, "-- Weapons --", leftPanelX + 6, sy, 0xFFAAAA);
         sy += LABEL_H + 4;
         for (WeaponShopItem w : WeaponShopItem.getAllSortedByPrice()) {
+            graphics.drawString(this.font, w.name() + " $" + w.price(), leftPanelX + 6, sy + 3, 0xFFFFFF);
             graphics.drawString(this.font, w.description(), leftPanelX + 6, sy + ROW_H, 0x888888);
             sy += ROW_H + 14;
         }
@@ -535,14 +519,21 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             int power = (int) Math.round(r.power() * (1.0 + level * cfg.getTowerPowerMultiplierPerLevel()));
             int fireRate = Math.max(1, (int) Math.round(r.fireRateInTicks() * Math.max(0.1, 1.0 - level * cfg.getTowerFireRateMultiplierPerLevel())));
             String lvlStr = level > 0 ? " Lv" + (level + 1) : "";
-            graphics.drawString(this.font, "DMG:" + power + " RNG:" + (int) r.range() + " SPD:" + String.format("%.1f", fireRate / 20.0) + "s" + lvlStr,
+            graphics.drawString(this.font, r.name(), cx, y + 3, 0xFFFFFF);
+            graphics.drawString(this.font, "$" + r.price() + " DMG:" + power + " RNG:" + (int) r.range() + " SPD:" + String.format("%.1f", fireRate / 20.0) + "s" + lvlStr,
                     towerStatsX, y + 3, 0xAAAAAA);
             y += ROW_H;
         }
         y += SECTION_GAP;
-        graphics.drawString(this.font, "-- Walls --", centerPanelX + 10, y, 0x55FFFF);
-        y += LABEL_H + WallShopItem.getAllSortedByPrice().size() * ROW_H + SECTION_GAP;
-        graphics.drawString(this.font, "-- Spawners --", centerPanelX + 10, y, 0xFF55FF);
+        graphics.drawString(this.font, "-- Walls --", cx, y, 0x55FFFF);
+        y += LABEL_H;
+        for (WallShopItem w : WallShopItem.getAllSortedByPrice()) {
+            graphics.drawString(this.font, w.name(), cx, y + 3, 0x55FFFF);
+            graphics.drawString(this.font, "$" + w.price(), statsX, y + 3, 0xAAAAAA);
+            y += ROW_H;
+        }
+        y += SECTION_GAP;
+        graphics.drawString(this.font, "-- Spawners --", cx, y, 0xFF55FF);
         y += LABEL_H;
 
         int spawnerStatsX = centerPanelX + 10 + SPAWNER_STATS_X_OFFSET;
@@ -557,16 +548,18 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             int hp = (int) (m.getBaseHp() * (1.0 + hpLvl * hpMult));
             int dmg = m.getNexusDamage() + dmgLvl;
             String spdStr = String.format("%.2f", m.getSpeed() * (1.0 + spdLvl * spdMult));
-            graphics.drawString(this.font, "HP:" + hp + " DMG:" + dmg + " SPD:" + spdStr + " /" + (s.getSpawnIntervalTicks() / 20) + "s",
+            graphics.drawString(this.font, s.getName(), cx, y + 3, 0xFF55FF);
+            graphics.drawString(this.font, "$" + s.getPrice() + " HP:" + hp + " DMG:" + dmg + " SPD:" + spdStr + " /" + (s.getSpawnIntervalTicks() / 20) + "s",
                     spawnerStatsX, y + 3, 0xAAAAAA);
             y += ROW_H;
         }
         y += SECTION_GAP;
-        graphics.drawString(this.font, "-- Generators --", centerPanelX + 10, y, 0xFFFF55);
+        graphics.drawString(this.font, "-- Generators --", cx, y, 0xFFFF55);
         y += LABEL_H;
 
         for (IncomeGeneratorType g : IncomeGeneratorType.getAllSortedByPrice()) {
-            graphics.drawString(this.font, "+$" + g.getIncomeAmount() + " / " + (g.getIncomeIntervalTicks() / 20) + "s",
+            graphics.drawString(this.font, g.getName(), cx, y + 3, 0xFFFF55);
+            graphics.drawString(this.font, "$" + g.getPrice() + " +$" + g.getIncomeAmount() + " / " + (g.getIncomeIntervalTicks() / 20) + "s",
                     statsX, y + 3, 0xAAAAAA);
             y += ROW_H;
         }

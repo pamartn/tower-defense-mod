@@ -43,10 +43,10 @@ public class PlayerKit {
         player.getFoodData().setFoodLevel(20);
     }
 
-    public static ItemStack createTowerBlock(TowerRecipe recipe, int count) {
+    public static ItemStack createTowerBlock(TowerRecipe recipe) {
         Block block = recipe.block();
-        ItemStack stack = new ItemStack(block.asItem(), count);
-        
+        ItemStack stack = new ItemStack(block.asItem(), 1);
+
         ChatFormatting color = switch (recipe.type()) {
             case BASIC -> ChatFormatting.WHITE;
             case ARCHER -> ChatFormatting.GREEN;
@@ -59,10 +59,11 @@ public class PlayerKit {
             case CHAIN_LIGHTNING -> ChatFormatting.YELLOW;
             case AOE -> ChatFormatting.DARK_RED;
         };
-        
-        stack.set(DataComponents.CUSTOM_NAME, 
-                Component.literal(recipe.name()).withStyle(color, ChatFormatting.BOLD));
-        
+
+        stack.set(DataComponents.CUSTOM_NAME,
+                Component.literal(recipe.name() + " ($" + recipe.price() + ")").withStyle(color, ChatFormatting.BOLD));
+        stack.set(DataComponents.MAX_STACK_SIZE, 1);
+
         return stack;
     }
 }

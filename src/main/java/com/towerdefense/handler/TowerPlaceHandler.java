@@ -4,6 +4,7 @@ import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.arena.WallBlockManager;
 import com.towerdefense.event.BlockPlaceCallback;
 import com.towerdefense.game.*;
+import com.towerdefense.shop.ShopScreenHandler;
 import com.towerdefense.shop.WallShopItem;
 import com.towerdefense.tower.TowerManager;
 import com.towerdefense.tower.TowerRecipe;
@@ -67,8 +68,15 @@ public class TowerPlaceHandler {
         SpawnerType spawnerType = SpawnerType.findByBlock(placedBlock);
         if (spawnerType != null && ps != null) {
             world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            MoneyManager money = gameManager.getPlayerState(player).getMoneyManager();
+            if (!money.canAfford(spawnerType.getPrice())) {
+                player.sendSystemMessage(Component.literal("Not enough money! Need $" + spawnerType.getPrice()).withStyle(ChatFormatting.RED));
+                player.getInventory().add(ShopScreenHandler.createSpawnerItem(spawnerType));
+                return;
+            }
+            money.spend(spawnerType.getPrice());
             gameManager.getSpawnerManager().placeSpawner(serverLevel, pos, spawnerType, ps.getSide(), ps.getEnemyNexusCenter());
-
+            player.getInventory().add(ShopScreenHandler.createSpawnerItem(spawnerType));
             player.sendSystemMessage(Component.literal("\u2726 " + spawnerType.getName() + " placed!")
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
             return;
@@ -77,14 +85,21 @@ public class TowerPlaceHandler {
         IncomeGeneratorType genType = IncomeGeneratorType.findByBlock(placedBlock);
         if (genType != null && ps != null) {
             world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            MoneyManager money = gameManager.getPlayerState(player).getMoneyManager();
+            if (!money.canAfford(genType.getPrice())) {
+                player.sendSystemMessage(Component.literal("Not enough money! Need $" + genType.getPrice()).withStyle(ChatFormatting.RED));
+                player.getInventory().add(ShopScreenHandler.createGeneratorItem(genType));
+                return;
+            }
             if (world.getBlockState(pos.below()).getBlock() != Blocks.GLOWSTONE) {
                 player.sendSystemMessage(Component.literal("\u26A0 Generators can only be placed on glowstone pads!")
                         .withStyle(ChatFormatting.RED));
-                player.getInventory().add(new ItemStack(placedBlock.asItem()));
+                player.getInventory().add(ShopScreenHandler.createGeneratorItem(genType));
                 return;
             }
+            money.spend(genType.getPrice());
             gameManager.getIncomeGeneratorManager().placeGenerator(serverLevel, pos, genType, ps.getSide());
-
+            player.getInventory().add(ShopScreenHandler.createGeneratorItem(genType));
             player.sendSystemMessage(Component.literal("\u2726 " + genType.getName() + " placed!")
                     .withStyle(ChatFormatting.YELLOW));
             return;
@@ -94,6 +109,16 @@ public class TowerPlaceHandler {
         if (match.isPresent()) {
             TowerRecipe recipe = match.get();
             world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+
+            MoneyManager money = ps != null ? gameManager.getPlayerState(player).getMoneyManager() : null;
+            if (money != null && !money.canAfford(recipe.price())) {
+                player.sendSystemMessage(Component.literal("Not enough money! Need $" + recipe.price()).withStyle(ChatFormatting.RED));
+                player.getInventory().add(PlayerKit.createTowerBlock(recipe));
+                return;
+            }
+            if (money != null) {
+                money.spend(recipe.price());
+            }
 
             int teamId = ps != null ? ps.getSide() : 1;
             manager.spawnTower(serverLevel, pos, recipe, teamId);
@@ -135,12 +160,20 @@ public class TowerPlaceHandler {
             );
 
             world.playSound(null, pos, SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 1.0f, 1.5f);
+            player.getInventory().add(PlayerKit.createTowerBlock(recipe));
             return;
         }
 
         // Wall block (wool, oak, cobblestone) - place 4-block tower and register for fireball damage
         WallShopItem wallItem = WallShopItem.findByBlock(placedBlock);
         if (wallItem != null && ps != null) {
+            MoneyManager money = gameManager.getPlayerState(player).getMoneyManager();
+            if (!money.canAfford(wallItem.price())) {
+                world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+                player.sendSystemMessage(Component.literal("Not enough money! Need $" + wallItem.price()).withStyle(ChatFormatting.RED));
+                player.getInventory().add(ShopScreenHandler.createWallItem(wallItem));
+                return;
+            }
             BlockPos base = pos;
             for (int dy = 1; dy < WallBlockManager.getTowerHeight(); dy++) {
                 BlockPos above = base.above(dy);
@@ -156,9 +189,12 @@ public class TowerPlaceHandler {
                 }
                 player.sendSystemMessage(Component.literal("This wall would block the mob path!")
                         .withStyle(ChatFormatting.RED));
+                player.getInventory().add(ShopScreenHandler.createWallItem(wallItem));
                 return;
             }
+            money.spend(wallItem.price());
             gameManager.getWallBlockManager().registerTower(serverLevel, base, ps.getSide(), wallItem.getTier());
+            player.getInventory().add(ShopScreenHandler.createWallItem(wallItem));
             return;
         }
 

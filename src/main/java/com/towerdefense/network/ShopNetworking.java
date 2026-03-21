@@ -39,57 +39,57 @@ public class ShopNetworking {
     public static final ResourceLocation TIER_BUY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(TowerDefenseMod.MOD_ID, "shop_tier_buy");
     public static final ResourceLocation OPEN_SHOP_PACKET_ID = ResourceLocation.fromNamespaceAndPath(TowerDefenseMod.MOD_ID, "open_shop");
 
-    public record ShopBuyPayload(int towerTypeOrdinal, int quantity) implements CustomPacketPayload {
+    public record ShopBuyPayload(int towerTypeOrdinal, boolean pick) implements CustomPacketPayload {
         public static final Type<ShopBuyPayload> TYPE = new Type<>(BUY_PACKET_ID);
         public static final StreamCodec<FriendlyByteBuf, ShopBuyPayload> CODEC =
             StreamCodec.of(ShopBuyPayload::write, ShopBuyPayload::read);
-        public static ShopBuyPayload read(FriendlyByteBuf buf) { return new ShopBuyPayload(buf.readInt(), buf.readInt()); }
-        public static void write(FriendlyByteBuf buf, ShopBuyPayload p) { buf.writeInt(p.towerTypeOrdinal); buf.writeInt(p.quantity); }
+        public static ShopBuyPayload read(FriendlyByteBuf buf) { return new ShopBuyPayload(buf.readInt(), buf.readBoolean()); }
+        public static void write(FriendlyByteBuf buf, ShopBuyPayload p) { buf.writeInt(p.towerTypeOrdinal); buf.writeBoolean(p.pick); }
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record WallBuyPayload(int wallItemIndex, int quantity) implements CustomPacketPayload {
+    public record WallBuyPayload(int wallItemIndex, boolean pick) implements CustomPacketPayload {
         public static final Type<WallBuyPayload> TYPE = new Type<>(WALL_BUY_PACKET_ID);
         public static final StreamCodec<FriendlyByteBuf, WallBuyPayload> CODEC =
             StreamCodec.of(WallBuyPayload::write, WallBuyPayload::read);
-        public static WallBuyPayload read(FriendlyByteBuf buf) { return new WallBuyPayload(buf.readInt(), buf.readInt()); }
-        public static void write(FriendlyByteBuf buf, WallBuyPayload p) { buf.writeInt(p.wallItemIndex); buf.writeInt(p.quantity); }
+        public static WallBuyPayload read(FriendlyByteBuf buf) { return new WallBuyPayload(buf.readInt(), buf.readBoolean()); }
+        public static void write(FriendlyByteBuf buf, WallBuyPayload p) { buf.writeInt(p.wallItemIndex); buf.writeBoolean(p.pick); }
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record SpawnerBuyPayload(int spawnerIndex, int quantity) implements CustomPacketPayload {
+    public record SpawnerBuyPayload(int spawnerIndex, boolean pick) implements CustomPacketPayload {
         public static final Type<SpawnerBuyPayload> TYPE = new Type<>(SPAWNER_BUY_PACKET_ID);
         public static final StreamCodec<FriendlyByteBuf, SpawnerBuyPayload> CODEC =
             StreamCodec.of(SpawnerBuyPayload::write, SpawnerBuyPayload::read);
-        public static SpawnerBuyPayload read(FriendlyByteBuf buf) { return new SpawnerBuyPayload(buf.readInt(), buf.readInt()); }
-        public static void write(FriendlyByteBuf buf, SpawnerBuyPayload p) { buf.writeInt(p.spawnerIndex); buf.writeInt(p.quantity); }
+        public static SpawnerBuyPayload read(FriendlyByteBuf buf) { return new SpawnerBuyPayload(buf.readInt(), buf.readBoolean()); }
+        public static void write(FriendlyByteBuf buf, SpawnerBuyPayload p) { buf.writeInt(p.spawnerIndex); buf.writeBoolean(p.pick); }
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record GeneratorBuyPayload(int genIndex, int quantity) implements CustomPacketPayload {
+    public record GeneratorBuyPayload(int genIndex, boolean pick) implements CustomPacketPayload {
         public static final Type<GeneratorBuyPayload> TYPE = new Type<>(GENERATOR_BUY_PACKET_ID);
         public static final StreamCodec<FriendlyByteBuf, GeneratorBuyPayload> CODEC =
             StreamCodec.of(GeneratorBuyPayload::write, GeneratorBuyPayload::read);
-        public static GeneratorBuyPayload read(FriendlyByteBuf buf) { return new GeneratorBuyPayload(buf.readInt(), buf.readInt()); }
-        public static void write(FriendlyByteBuf buf, GeneratorBuyPayload p) { buf.writeInt(p.genIndex); buf.writeInt(p.quantity); }
+        public static GeneratorBuyPayload read(FriendlyByteBuf buf) { return new GeneratorBuyPayload(buf.readInt(), buf.readBoolean()); }
+        public static void write(FriendlyByteBuf buf, GeneratorBuyPayload p) { buf.writeInt(p.genIndex); buf.writeBoolean(p.pick); }
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record WeaponBuyPayload(int weaponIndex, int quantity) implements CustomPacketPayload {
+    public record WeaponBuyPayload(int weaponIndex, boolean pick) implements CustomPacketPayload {
         public static final Type<WeaponBuyPayload> TYPE = new Type<>(WEAPON_BUY_PACKET_ID);
         public static final StreamCodec<FriendlyByteBuf, WeaponBuyPayload> CODEC =
             StreamCodec.of(WeaponBuyPayload::write, WeaponBuyPayload::read);
-        public static WeaponBuyPayload read(FriendlyByteBuf buf) { return new WeaponBuyPayload(buf.readInt(), buf.readInt()); }
-        public static void write(FriendlyByteBuf buf, WeaponBuyPayload p) { buf.writeInt(p.weaponIndex); buf.writeInt(p.quantity); }
+        public static WeaponBuyPayload read(FriendlyByteBuf buf) { return new WeaponBuyPayload(buf.readInt(), buf.readBoolean()); }
+        public static void write(FriendlyByteBuf buf, WeaponBuyPayload p) { buf.writeInt(p.weaponIndex); buf.writeBoolean(p.pick); }
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record SpellBuyPayload(int spellIndex, int quantity) implements CustomPacketPayload {
+    public record SpellBuyPayload(int spellIndex, boolean pick) implements CustomPacketPayload {
         public static final Type<SpellBuyPayload> TYPE = new Type<>(SPELL_BUY_PACKET_ID);
         public static final StreamCodec<FriendlyByteBuf, SpellBuyPayload> CODEC =
             StreamCodec.of(SpellBuyPayload::write, SpellBuyPayload::read);
-        public static SpellBuyPayload read(FriendlyByteBuf buf) { return new SpellBuyPayload(buf.readInt(), buf.readInt()); }
-        public static void write(FriendlyByteBuf buf, SpellBuyPayload p) { buf.writeInt(p.spellIndex); buf.writeInt(p.quantity); }
+        public static SpellBuyPayload read(FriendlyByteBuf buf) { return new SpellBuyPayload(buf.readInt(), buf.readBoolean()); }
+        public static void write(FriendlyByteBuf buf, SpellBuyPayload p) { buf.writeInt(p.spellIndex); buf.writeBoolean(p.pick); }
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
@@ -147,7 +147,7 @@ public class ShopNetworking {
                 if (player.containerMenu instanceof ShopScreenHandler sh) {
                     TowerType[] types = TowerType.values();
                     if (payload.towerTypeOrdinal >= 0 && payload.towerTypeOrdinal < types.length) {
-                        sh.buyTower(types[payload.towerTypeOrdinal], payload.quantity);
+                        sh.buyTower(types[payload.towerTypeOrdinal], payload.pick);
                     }
                 }
             });
@@ -157,7 +157,7 @@ public class ShopNetworking {
             context.server().execute(() -> {
                 if (context.player().containerMenu instanceof ShopScreenHandler sh) {
                     if (payload.wallItemIndex >= 0 && payload.wallItemIndex < WallShopItem.getAllSortedByPrice().size()) {
-                        sh.buyWallBlock(payload.wallItemIndex, payload.quantity);
+                        sh.buyWallBlock(payload.wallItemIndex, payload.pick);
                     }
                 }
             });
@@ -167,7 +167,7 @@ public class ShopNetworking {
             context.server().execute(() -> {
                 if (context.player().containerMenu instanceof ShopScreenHandler sh) {
                     if (payload.spawnerIndex >= 0 && payload.spawnerIndex < SpawnerType.getAllSortedByPrice().size()) {
-                        sh.buySpawner(payload.spawnerIndex, payload.quantity);
+                        sh.buySpawner(payload.spawnerIndex, payload.pick);
                     }
                 }
             });
@@ -177,7 +177,7 @@ public class ShopNetworking {
             context.server().execute(() -> {
                 if (context.player().containerMenu instanceof ShopScreenHandler sh) {
                     if (payload.genIndex >= 0 && payload.genIndex < IncomeGeneratorType.getAllSortedByPrice().size()) {
-                        sh.buyGenerator(payload.genIndex, payload.quantity);
+                        sh.buyGenerator(payload.genIndex, payload.pick);
                     }
                 }
             });
@@ -187,7 +187,7 @@ public class ShopNetworking {
             context.server().execute(() -> {
                 if (context.player().containerMenu instanceof ShopScreenHandler sh) {
                     if (payload.weaponIndex >= 0 && payload.weaponIndex < WeaponShopItem.getAllSortedByPrice().size()) {
-                        sh.buyWeapon(payload.weaponIndex, payload.quantity);
+                        sh.buyWeapon(payload.weaponIndex, payload.pick);
                     }
                 }
             });
@@ -197,7 +197,7 @@ public class ShopNetworking {
             context.server().execute(() -> {
                 if (context.player().containerMenu instanceof ShopScreenHandler sh) {
                     if (payload.spellIndex >= 0 && payload.spellIndex < SpellType.getAllSortedByPrice().size()) {
-                        sh.buySpell(payload.spellIndex, payload.quantity);
+                        sh.buySpell(payload.spellIndex, payload.pick);
                     }
                 }
             });
