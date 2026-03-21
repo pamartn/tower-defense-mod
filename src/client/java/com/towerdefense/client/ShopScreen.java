@@ -8,6 +8,7 @@ import com.towerdefense.shop.WallShopItem;
 import com.towerdefense.shop.WeaponShopItem;
 import com.towerdefense.spell.SpellType;
 import com.towerdefense.tower.TowerRecipe;
+import com.towerdefense.tower.TowerType;
 import com.towerdefense.wave.MobType;
 import com.towerdefense.wave.MobUpgradeManager;
 import com.towerdefense.wave.SpawnerType;
@@ -48,6 +49,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
     private final List<UpgradeBtn> spawnerUpgradeButtons = new ArrayList<>();
     private final List<UpgradeBtn> towerUpgradeButtons = new ArrayList<>();
     private final List<Map.Entry<SpawnerType, Button>> spawnerTooltipButtons = new ArrayList<>();
+    private final List<Map.Entry<TowerType, Button>> towerTooltipButtons = new ArrayList<>();
 
     private Button nextTierButton = null;
     private int nextTierTarget = 2;
@@ -88,6 +90,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         spawnerUpgradeButtons.clear();
         towerUpgradeButtons.clear();
         spawnerTooltipButtons.clear();
+        towerTooltipButtons.clear();
         nextTierButton = null;
 
         panelTopY = (this.height - centerHeight) / 2;
@@ -183,8 +186,10 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
 
     private void addTowerRow(int x, int y, TowerRecipe r, int idx) {
         int baseX = x + NAME_W + GAP + X5_W + GAP + MAX_W + GAP;
+        int beforeSize = shopButtons.size();
         addShopRow(x, y, r.name() + " $" + r.price(),
                 btn -> buyTower(idx, 1), btn -> buyTower(idx, 5), btn -> buyTowerMax(idx));
+        towerTooltipButtons.add(Map.entry(r.type(), shopButtons.get(beforeSize)));
         Button ub = Button.builder(Component.literal("UP"), b -> buyTowerUpgrade(idx))
                 .bounds(baseX, y, TOWER_UPGRADE_BTN_W, ROW_H - 2).build();
         this.addRenderableWidget(ub);
@@ -229,6 +234,62 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
                     Component.literal("allied mobs.").withStyle(net.minecraft.ChatFormatting.GRAY)
             );
             default -> null;
+        };
+    }
+
+    private List<Component> towerTooltip(TowerType t) {
+        return switch (t) {
+            case BASIC -> List.of(
+                    Component.literal("Basic Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Shoots nearby mobs.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("No special effect.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)
+            );
+            case ARCHER -> List.of(
+                    Component.literal("Archer Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Long range, faster fire rate.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("No special effect.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)
+            );
+            case CANNON -> List.of(
+                    Component.literal("Cannon Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("High damage, slow reload.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Splash damage on impact.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case LASER -> List.of(
+                    Component.literal("Laser Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Very long range, fast fire rate,").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("high single-target DPS.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case FIRE -> List.of(
+                    Component.literal("Fire Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Sets mobs on fire on hit.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Deals burn damage over time.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case SLOW -> List.of(
+                    Component.literal("Slow Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Applies Slowness to mobs on hit.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Deals no direct damage.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)
+            );
+            case POISON -> List.of(
+                    Component.literal("Poison Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Poisons mobs on hit.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Deals poison damage over time.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case SNIPER -> List.of(
+                    Component.literal("Sniper Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Extreme range and damage,").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("very slow reload.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Best against high-HP targets.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case CHAIN_LIGHTNING -> List.of(
+                    Component.literal("Chain Lightning Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Hits primary target then chains").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("to nearby mobs.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
+            case AOE -> List.of(
+                    Component.literal("AOE Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Deals damage in a large area").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("around the target.").withStyle(net.minecraft.ChatFormatting.GRAY)
+            );
         };
     }
 
@@ -510,6 +571,14 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             y += ROW_H;
         }
 
+        // Tower tooltips
+        for (var entry : towerTooltipButtons) {
+            if (entry.getValue().isHovered()) {
+                List<Component> lines = towerTooltip(entry.getKey());
+                if (lines != null) graphics.renderTooltip(this.font, lines, java.util.Optional.empty(), mouseX, mouseY);
+                break;
+            }
+        }
         // Spawner special ability tooltips
         for (var entry : spawnerTooltipButtons) {
             if (entry.getValue().isHovered()) {

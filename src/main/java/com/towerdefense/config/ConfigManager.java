@@ -123,7 +123,7 @@ public class ConfigManager {
             c.spawners.put(s.name(), sec);
         }
         // Towers (from TowerRegistry defaults)
-        c.towers.put("BASIC", tower(2, 8, 40, 10));
+        c.towers.put("BASIC", tower(1, 8, 40, 10));
         c.towers.put("ARCHER", tower(2, 12, 35, 25));
         c.towers.put("CANNON", tower(8, 16, 60, 50));
         c.towers.put("LASER", tower(6, 20, 25, 100));
@@ -235,6 +235,47 @@ public class ConfigManager {
             TDConfig.SpawnerSection bz = c.spawners.get("BABY_ZOMBIE_SPAWNER");
             if (bz != null && bz.tier == 1) bz.tier = 2;
         }
+        // v1.5.0: basic tower damage reduced 2 -> 1
+        if (c.towers != null) {
+            TDConfig.TowerSection basic = c.towers.get("BASIC");
+            if (basic != null && basic.power == 2) basic.power = 1;
+        }
+        // v1.5.0: starting money reduced 500 -> 100
+        if (c.game != null && c.game.startingMoney == 500) c.game.startingMoney = 100;
+        // v1.5.0: generator income halved
+        if (c.generators != null) {
+            migrateGeneratorIncome(c.generators, "BASIC",    2, 1);
+            migrateGeneratorIncome(c.generators, "ADVANCED", 5, 2);
+            migrateGeneratorIncome(c.generators, "ELITE",   15, 7);
+        }
+        // v1.5.0: mob money rewards halved; ravager speed/nexus damage reduced
+        if (c.mobs != null) {
+            migrateMobReward(c.mobs, "ZOMBIE",      5,  2);
+            migrateMobReward(c.mobs, "SKELETON",    8,  4);
+            migrateMobReward(c.mobs, "SPIDER",     10,  5);
+            migrateMobReward(c.mobs, "RAVAGER",    50, 25);
+            migrateMobReward(c.mobs, "BABY_ZOMBIE", 3,  1);
+            migrateMobReward(c.mobs, "CREEPER",    15,  7);
+            migrateMobReward(c.mobs, "ENDERMAN",   12,  6);
+            migrateMobReward(c.mobs, "WITCH",      10,  5);
+            migrateMobReward(c.mobs, "IRON_GOLEM", 60, 30);
+            migrateMobReward(c.mobs, "BOSS",      100, 50);
+            TDConfig.MobSection rav = c.mobs.get("RAVAGER");
+            if (rav != null) {
+                if (rav.speed == 0.15) rav.speed = 0.12;
+                if (rav.nexusDamage == 20) rav.nexusDamage = 12;
+            }
+        }
+    }
+
+    private static void migrateGeneratorIncome(java.util.Map<String, TDConfig.GeneratorSection> map, String key, int oldVal, int newVal) {
+        TDConfig.GeneratorSection s = map.get(key);
+        if (s != null && s.incomeAmount == oldVal) s.incomeAmount = newVal;
+    }
+
+    private static void migrateMobReward(java.util.Map<String, TDConfig.MobSection> map, String key, int oldVal, int newVal) {
+        TDConfig.MobSection s = map.get(key);
+        if (s != null && s.moneyReward == oldVal) s.moneyReward = newVal;
     }
 
     private TDConfig merge(TDConfig base, TDConfig patch) {

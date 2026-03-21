@@ -94,14 +94,14 @@ public class OreManager {
     private int computeIncomeForPhase(int playingPhaseTicks) {
         int base;
         if (playingPhaseTicks < 1200) {
-            base = 15;
+            base = 7;
         } else if (playingPhaseTicks < 3600) {
-            base = 40;
+            base = 20;
         } else {
-            base = 75;
+            base = 37;
         }
-        int bonus = new Random().nextInt(11);
-        return Math.min(100, Math.max(10, base + bonus));
+        int bonus = new Random().nextInt(6);
+        return Math.min(50, Math.max(5, base + bonus));
     }
 
     private void placeOre(ServerLevel world, BlockPos pos, int income) {

@@ -9,9 +9,9 @@ import java.util.List;
 
 public enum IncomeGeneratorType implements Purchasable {
 
-    BASIC("Basic Generator", 25, 2, 10 * 20, Blocks.GOLD_BLOCK),
-    ADVANCED("Advanced Generator", 60, 5, 10 * 20, Blocks.EMERALD_BLOCK),
-    ELITE("Elite Generator", 150, 15, 10 * 20, Blocks.NETHERITE_BLOCK);
+    BASIC("Basic Generator", 25, 1, 10 * 20, Blocks.GOLD_BLOCK),
+    ADVANCED("Advanced Generator", 60, 2, 10 * 20, Blocks.EMERALD_BLOCK),
+    ELITE("Elite Generator", 150, 7, 10 * 20, Blocks.NETHERITE_BLOCK);
 
     private final String name;
     private final int defaultPrice;
