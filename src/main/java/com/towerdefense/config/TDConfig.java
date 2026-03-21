@@ -27,7 +27,7 @@ public class TDConfig {
     public GameEventSection gameEvents = new GameEventSection();
 
     public static class GameSection {
-        public int startingMoney = 100;
+        public int startingMoney = 200;
         public int nexusMaxHp = 100;
         public int tier2Cost = 200;
         public int tier3Cost = 500;

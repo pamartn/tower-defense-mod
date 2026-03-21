@@ -2,6 +2,7 @@ package com.towerdefense.network;
 
 import com.towerdefense.TowerDefenseMod;
 import com.towerdefense.config.ConfigManager;
+import com.towerdefense.network.MinimapPayload;
 import com.towerdefense.game.IncomeGeneratorType;
 import com.towerdefense.game.MoneyManager;
 import com.towerdefense.game.PlayerState;
@@ -128,6 +129,7 @@ public class ShopNetworking {
 
     public static void registerServer() {
         PayloadTypeRegistry.playS2C().register(ConfigSyncPayload.TYPE, ConfigSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MinimapPayload.TYPE, MinimapPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ShopBuyPayload.TYPE, ShopBuyPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(WallBuyPayload.TYPE, WallBuyPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(SpawnerBuyPayload.TYPE, SpawnerBuyPayload.CODEC);

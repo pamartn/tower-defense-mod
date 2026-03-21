@@ -9,7 +9,7 @@ public enum MobType {
     SKELETON(EntityType.SKELETON, 15.0, 0.23, 3, 4),
     SPIDER(EntityType.SPIDER, 10.0, 0.35, 2, 5),
     RAVAGER(EntityType.RAVAGER, 80.0, 0.12, 12, 25),
-    BABY_ZOMBIE(EntityType.ZOMBIE, 8.0, 0.30, 3, 1),
+    BABY_ZOMBIE(EntityType.ZOMBIE, 5.0, 0.30, 1, 1),
     CREEPER(EntityType.CREEPER, 15.0, 0.15, 30, 7),
     ENDERMAN(EntityType.ENDERMAN, 25.0, 0.25, 5, 6),
     WITCH(EntityType.WITCH, 18.0, 0.18, 4, 5),

@@ -16,6 +16,9 @@ import com.towerdefense.wave.MobType;
 import com.towerdefense.wave.MobUpgradeManager;
 import com.towerdefense.wave.SpawnerManager;
 import com.towerdefense.wave.SpawnerType;
+import com.towerdefense.network.MinimapPayload;
+import com.towerdefense.wave.MobTags;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -41,6 +44,8 @@ public class GameManager implements StructureEventSink, IGameSession {
     private int passiveIncomeTicker;
     private int incomeDisplayTicker;
     private int waveEventTicker;
+    private int minimapTicker;
+    private int restoreHealthTicker;
     private final java.util.Random eventRandom = new java.util.Random();
 
     private ServerLevel world;
@@ -60,6 +65,7 @@ public class GameManager implements StructureEventSink, IGameSession {
     private final MobUpgradeManager mobUpgradeManager = new MobUpgradeManager();
     private final TowerUpgradeManager towerUpgradeManager = new TowerUpgradeManager();
     private final HudManager hudManager = new HudManager();
+    private final NexusBossBarManager nexusBossBarManager = new NexusBossBarManager();
     private final SpectatorManager spectatorManager = new SpectatorManager();
     private final SpellManager spellManager = new SpellManager();
     private final TierManager tierManager = new TierManager();
@@ -180,6 +186,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         }
 
         // PREP or PLAYING: join anytime
+        nexusBossBarManager.addPlayer(player);
         playerKit.setupPlayer(player);
         if (state == GameState.PREP_PHASE) {
             playerKit.giveStartingKit(player);
@@ -244,11 +251,17 @@ public class GameManager implements StructureEventSink, IGameSession {
         }
 
         hudManager.setup(world.getScoreboard());
+        nexusBossBarManager.removeAllPlayers();
+        for (PlayerState ps : playerStates.values()) {
+            nexusBossBarManager.addPlayer(ps.getPlayer());
+        }
         state = GameState.PREP_PHASE;
         tickCounter = GameConfig.PREP_PHASE_TICKS();
         passiveIncomeTicker = GameConfig.BASE_PASSIVE_INTERVAL();
         incomeDisplayTicker = 0;
         waveEventTicker = ConfigManager.getInstance().getWaveEventIntervalTicks();
+        minimapTicker = 0;
+        restoreHealthTicker = 0;
 
         for (PlayerState ps : playerStates.values()) {
             HudManager.sendTitle(ps.getPlayer(),
@@ -296,6 +309,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         TeamState team = ps.getTeam();
         team.removeMember(uuid);
         if (ps.getPlayer() != null && !ps.getPlayer().isRemoved()) {
+            nexusBossBarManager.removePlayer(ps.getPlayer());
             playerKit.resetPlayer(ps.getPlayer());
         }
 
@@ -355,6 +369,7 @@ public class GameManager implements StructureEventSink, IGameSession {
             world.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(true, world.getServer());
         }
 
+        nexusBossBarManager.removeAllPlayers();
         for (PlayerState ps : playerStates.values()) {
             if (ps.getPlayer() != null) playerKit.resetPlayer(ps.getPlayer());
         }
@@ -411,6 +426,27 @@ public class GameManager implements StructureEventSink, IGameSession {
         spectatorManager.tick();
         if (world != null) spellManager.tick(world);
         updateHud();
+
+        // Restore food and health every 3 seconds
+        restoreHealthTicker++;
+        if (restoreHealthTicker >= 60) {
+            restoreHealthTicker = 0;
+            for (PlayerState ps : playerStates.values()) {
+                ServerPlayer p = ps.getPlayer();
+                if (p.isAlive()) {
+                    p.setHealth(p.getMaxHealth());
+                    p.getFoodData().setFoodLevel(20);
+                    p.getFoodData().setSaturation(20.0f);
+                }
+            }
+        }
+
+        // Send minimap packet every 10 ticks
+        minimapTicker++;
+        if (minimapTicker >= 10) {
+            minimapTicker = 0;
+            sendMinimapPackets();
+        }
     }
 
     private void tickPrepPhase() {
@@ -662,6 +698,31 @@ public class GameManager implements StructureEventSink, IGameSession {
 
     // ─── HUD ───
 
+    private void sendMinimapPackets() {
+        if (world == null || team1 == null || team2 == null) return;
+        BlockPos origin = GameConfig.arenaOrigin;
+        int size = GameConfig.ARENA_SIZE();
+
+        // Build position lists per team
+        java.util.List<int[]> team1Mobs = new java.util.ArrayList<>();
+        java.util.List<int[]> team2Mobs = new java.util.ArrayList<>();
+        for (Mob mob : spawnerManager.getAliveMobs()) {
+            int teamId = MobTags.getTeamId(mob);
+            int rx = mob.blockPosition().getX() - origin.getX();
+            int rz = mob.blockPosition().getZ() - origin.getZ();
+            if (teamId == 1) team1Mobs.add(new int[]{rx, rz});
+            else if (teamId == 2) team2Mobs.add(new int[]{rx, rz});
+        }
+
+        for (PlayerState ps : playerStates.values()) {
+            int side = ps.getSide();
+            java.util.List<int[]> own   = side == 1 ? team1Mobs : team2Mobs;
+            java.util.List<int[]> enemy = side == 1 ? team2Mobs : team1Mobs;
+            ServerPlayNetworking.send(ps.getPlayer(),
+                    new MinimapPayload(origin.getX(), origin.getZ(), size, side, own, enemy));
+        }
+    }
+
     private void updateHud() {
         if (world == null || team1 == null || team2 == null) return;
 
@@ -681,6 +742,10 @@ public class GameManager implements StructureEventSink, IGameSession {
                 t2Income,
                 state == GameState.PREP_PHASE ? tickCounter / 20 : -1,
                 gameMode == GameMode.SOLO);
+
+        nexusBossBarManager.update(
+                team1.getNexusManager().getHp(), team1.getNexusManager().getMaxHp(),
+                team2.getNexusManager().getHp(), team2.getNexusManager().getMaxHp());
     }
 
     // ─── Helpers ───

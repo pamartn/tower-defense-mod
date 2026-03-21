@@ -1,9 +1,11 @@
 package com.towerdefense;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.towerdefense.client.MinimapRenderer;
 import com.towerdefense.client.ShopScreen;
 import com.towerdefense.config.ConfigManager;
 import com.towerdefense.network.ConfigSyncPayload;
+import com.towerdefense.network.MinimapPayload;
 import com.towerdefense.network.ShopNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -25,6 +27,12 @@ public class TowerDefenseModClient implements ClientModInitializer {
                 TowerDefenseMod.getInstance().getTowerRegistry().reloadFromConfig();
             });
         });
+
+        ClientPlayNetworking.registerGlobalReceiver(MinimapPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> MinimapRenderer.update(payload));
+        });
+
+        MinimapRenderer.register();
 
         MenuScreens.register(TowerDefenseMod.SHOP_SCREEN_HANDLER_TYPE, ShopScreen::new);
 

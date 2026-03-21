@@ -240,8 +240,16 @@ public class ConfigManager {
             TDConfig.TowerSection basic = c.towers.get("BASIC");
             if (basic != null && basic.power == 2) basic.power = 1;
         }
-        // v1.5.0: starting money reduced 500 -> 100
-        if (c.game != null && c.game.startingMoney == 500) c.game.startingMoney = 100;
+        // v1.6.0: starting money adjusted to 200
+        if (c.game != null && (c.game.startingMoney == 500 || c.game.startingMoney == 100)) c.game.startingMoney = 200;
+        // v1.6.0: baby zombie hp 8->5, nexus damage 3->1
+        if (c.mobs != null) {
+            TDConfig.MobSection bz = c.mobs.get("BABY_ZOMBIE");
+            if (bz != null) {
+                if (bz.baseHp == 8.0) bz.baseHp = 5.0;
+                if (bz.nexusDamage == 3) bz.nexusDamage = 1;
+            }
+        }
         // v1.5.0: generator income halved
         if (c.generators != null) {
             migrateGeneratorIncome(c.generators, "BASIC",    2, 1);
