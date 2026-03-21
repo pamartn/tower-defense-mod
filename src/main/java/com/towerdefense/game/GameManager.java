@@ -119,7 +119,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         state = GameState.LOBBY;
         addPlayerToGame(host, 1);
 
-        host.sendSystemMessage(Component.literal("Lobby created! You're in Team 1. Use /td invite <player> or players can /td join to join.")
+        host.sendSystemMessage(Component.literal("Lobby created! Use /td invite <player> or players can /td join to join.")
                 .withStyle(ChatFormatting.GREEN));
         TowerDefenseMod.LOGGER.info("Tower Defense lobby created by {}", host.getName().getString());
     }
@@ -186,7 +186,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         }
 
         // PREP or PLAYING: join anytime
-        nexusBossBarManager.addPlayer(player);
+        nexusBossBarManager.addPlayer(player, team);
         playerKit.setupPlayer(player);
         if (state == GameState.PREP_PHASE) {
             playerKit.giveStartingKit(player);
@@ -196,7 +196,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
         tierManager.initTeam(team);
         HudManager.sendTitle(player,
-                Component.literal("You joined Team " + team + "!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
+                Component.literal("You joined the game!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
                 Component.literal("").withStyle(ChatFormatting.GRAY), 5, 40, 10);
         return true;
     }
@@ -253,7 +253,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         hudManager.setup(world.getScoreboard());
         nexusBossBarManager.removeAllPlayers();
         for (PlayerState ps : playerStates.values()) {
-            nexusBossBarManager.addPlayer(ps.getPlayer());
+            nexusBossBarManager.addPlayer(ps.getPlayer(), ps.getSide());
         }
         state = GameState.PREP_PHASE;
         tickCounter = GameConfig.PREP_PHASE_TICKS();
@@ -703,24 +703,83 @@ public class GameManager implements StructureEventSink, IGameSession {
         BlockPos origin = GameConfig.arenaOrigin;
         int size = GameConfig.ARENA_SIZE();
 
-        // Build position lists per team
-        java.util.List<int[]> team1Mobs = new java.util.ArrayList<>();
-        java.util.List<int[]> team2Mobs = new java.util.ArrayList<>();
+        // Mob positions
+        List<int[]> team1Mobs = new ArrayList<>();
+        List<int[]> team2Mobs = new ArrayList<>();
+        List<List<int[]>> team1Paths = new ArrayList<>();
+        List<List<int[]>> team2Paths = new ArrayList<>();
+
         for (Mob mob : spawnerManager.getAliveMobs()) {
             int teamId = MobTags.getTeamId(mob);
             int rx = mob.blockPosition().getX() - origin.getX();
             int rz = mob.blockPosition().getZ() - origin.getZ();
-            if (teamId == 1) team1Mobs.add(new int[]{rx, rz});
-            else if (teamId == 2) team2Mobs.add(new int[]{rx, rz});
+            List<int[]> path = extractPath(mob, origin);
+            if (teamId == 1) {
+                team1Mobs.add(new int[]{rx, rz});
+                team1Paths.add(path);
+            } else if (teamId == 2) {
+                team2Mobs.add(new int[]{rx, rz});
+                team2Paths.add(path);
+            }
         }
+
+        // Structures
+        List<int[]> walls1 = toRelative(wallBlockManager.getWallXZByTeam(1), origin);
+        List<int[]> walls2 = toRelative(wallBlockManager.getWallXZByTeam(2), origin);
+        List<int[]> towers1 = new ArrayList<>();
+        List<int[]> towers2 = new ArrayList<>();
+        if (towerManager != null) {
+            for (var t : towerManager.getTowers()) {
+                int rx = t.basePos().getX() - origin.getX();
+                int rz = t.basePos().getZ() - origin.getZ();
+                (t.teamId() == 1 ? towers1 : towers2).add(new int[]{rx, rz});
+            }
+        }
+
+        BlockPos n1 = GameConfig.getPlayer1NexusCenter();
+        BlockPos n2 = GameConfig.getPlayer2NexusCenter();
+        int[] nexus1 = {n1.getX() - origin.getX(), n1.getZ() - origin.getZ()};
+        int[] nexus2 = {n2.getX() - origin.getX(), n2.getZ() - origin.getZ()};
 
         for (PlayerState ps : playerStates.values()) {
             int side = ps.getSide();
-            java.util.List<int[]> own   = side == 1 ? team1Mobs : team2Mobs;
-            java.util.List<int[]> enemy = side == 1 ? team2Mobs : team1Mobs;
-            ServerPlayNetworking.send(ps.getPlayer(),
-                    new MinimapPayload(origin.getX(), origin.getZ(), size, side, own, enemy));
+            boolean isTeam1 = side == 1;
+            ServerPlayNetworking.send(ps.getPlayer(), new MinimapPayload(
+                    origin.getX(), origin.getZ(), size, side,
+                    isTeam1 ? team1Mobs : team2Mobs,
+                    isTeam1 ? team2Mobs : team1Mobs,
+                    isTeam1 ? team1Paths : team2Paths,
+                    isTeam1 ? team2Paths : team1Paths,
+                    isTeam1 ? walls1 : walls2,
+                    isTeam1 ? walls2 : walls1,
+                    isTeam1 ? towers1 : towers2,
+                    isTeam1 ? towers2 : towers1,
+                    isTeam1 ? nexus1 : nexus2,
+                    isTeam1 ? nexus2 : nexus1
+            ));
         }
+    }
+
+    private List<int[]> extractPath(Mob mob, BlockPos origin) {
+        var path = mob.getNavigation().getPath();
+        if (path == null) return java.util.Collections.emptyList();
+        List<int[]> nodes = new ArrayList<>();
+        int count = path.getNodeCount();
+        int nextIdx = path.getNextNodeIndex();
+        // Sample remaining path nodes, max 20
+        for (int i = nextIdx; i < count && nodes.size() < 20; i++) {
+            var node = path.getNode(i);
+            nodes.add(new int[]{node.x - origin.getX(), node.z - origin.getZ()});
+        }
+        return nodes;
+    }
+
+    private List<int[]> toRelative(List<int[]> absXZ, BlockPos origin) {
+        List<int[]> rel = new ArrayList<>(absXZ.size());
+        for (int[] pos : absXZ) {
+            rel.add(new int[]{pos[0] - origin.getX(), pos[1] - origin.getZ()});
+        }
+        return rel;
     }
 
     private void updateHud() {

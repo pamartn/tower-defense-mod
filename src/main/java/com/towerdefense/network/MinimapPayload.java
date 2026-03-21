@@ -10,14 +10,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server → client packet sent every 10 ticks with mob positions for the minimap.
- * Positions are relative to the arena origin (0..arenaSize-1).
+ * Server → client minimap packet sent every 10 ticks.
+ * All positions are relative to arena origin (0..arenaSize-1).
  */
 public record MinimapPayload(
         int arenaOriginX, int arenaOriginZ, int arenaSize,
         int playerTeamId,
+        // Mobs
         List<int[]> ownMobs,
-        List<int[]> enemyMobs
+        List<int[]> enemyMobs,
+        // Mob paths: each element is a list of [x,z] waypoints for one mob
+        List<List<int[]>> ownPaths,
+        List<List<int[]>> enemyPaths,
+        // Structures
+        List<int[]> ownWalls,
+        List<int[]> enemyWalls,
+        List<int[]> ownTowers,
+        List<int[]> enemyTowers,
+        int[] ownNexus,    // [x,z]
+        int[] enemyNexus   // [x,z]
 ) implements CustomPacketPayload {
 
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TowerDefenseMod.MOD_ID, "minimap");
@@ -30,36 +41,61 @@ public record MinimapPayload(
         buf.writeInt(p.arenaOriginZ);
         buf.writeInt(p.arenaSize);
         buf.writeInt(p.playerTeamId);
-        writeMobList(buf, p.ownMobs);
-        writeMobList(buf, p.enemyMobs);
+        writeXZList(buf, p.ownMobs);
+        writeXZList(buf, p.enemyMobs);
+        writePathList(buf, p.ownPaths);
+        writePathList(buf, p.enemyPaths);
+        writeXZList(buf, p.ownWalls);
+        writeXZList(buf, p.enemyWalls);
+        writeXZList(buf, p.ownTowers);
+        writeXZList(buf, p.enemyTowers);
+        writeXZ(buf, p.ownNexus);
+        writeXZ(buf, p.enemyNexus);
     }
 
     public static MinimapPayload read(FriendlyByteBuf buf) {
-        int x = buf.readInt(), z = buf.readInt(), size = buf.readInt(), team = buf.readInt();
-        List<int[]> own = readMobList(buf);
-        List<int[]> enemy = readMobList(buf);
-        return new MinimapPayload(x, z, size, team, own, enemy);
+        int ox = buf.readInt(), oz = buf.readInt(), size = buf.readInt(), team = buf.readInt();
+        List<int[]> om = readXZList(buf), em = readXZList(buf);
+        List<List<int[]>> op = readPathList(buf), ep = readPathList(buf);
+        List<int[]> ow = readXZList(buf), ew = readXZList(buf);
+        List<int[]> ot = readXZList(buf), et = readXZList(buf);
+        int[] on = readXZ(buf), en = readXZ(buf);
+        return new MinimapPayload(ox, oz, size, team, om, em, op, ep, ow, ew, ot, et, on, en);
     }
 
-    private static void writeMobList(FriendlyByteBuf buf, List<int[]> mobs) {
-        buf.writeInt(mobs.size());
-        for (int[] pos : mobs) {
-            buf.writeShort(pos[0]);
-            buf.writeShort(pos[1]);
-        }
+    private static void writeXZ(FriendlyByteBuf buf, int[] pos) {
+        buf.writeShort(pos != null ? pos[0] : 0);
+        buf.writeShort(pos != null ? pos[1] : 0);
     }
 
-    private static List<int[]> readMobList(FriendlyByteBuf buf) {
-        int count = buf.readInt();
-        List<int[]> list = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            list.add(new int[]{buf.readShort(), buf.readShort()});
-        }
+    private static int[] readXZ(FriendlyByteBuf buf) {
+        return new int[]{buf.readShort(), buf.readShort()};
+    }
+
+    private static void writeXZList(FriendlyByteBuf buf, List<int[]> list) {
+        buf.writeInt(list.size());
+        for (int[] pos : list) { buf.writeShort(pos[0]); buf.writeShort(pos[1]); }
+    }
+
+    private static List<int[]> readXZList(FriendlyByteBuf buf) {
+        int n = buf.readInt();
+        List<int[]> list = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) list.add(new int[]{buf.readShort(), buf.readShort()});
         return list;
     }
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    private static void writePathList(FriendlyByteBuf buf, List<List<int[]>> paths) {
+        buf.writeInt(paths.size());
+        for (List<int[]> path : paths) writeXZList(buf, path);
     }
+
+    private static List<List<int[]>> readPathList(FriendlyByteBuf buf) {
+        int n = buf.readInt();
+        List<List<int[]>> paths = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) paths.add(readXZList(buf));
+        return paths;
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

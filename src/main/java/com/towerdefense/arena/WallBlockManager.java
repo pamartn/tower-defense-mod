@@ -59,6 +59,21 @@ public class WallBlockManager {
         blocks.clear();
     }
 
+    public java.util.List<int[]> getWallXZByTeam(int teamId) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        java.util.List<int[]> result = new java.util.ArrayList<>();
+        for (var entry : blocks.entrySet()) {
+            if (entry.getValue().teamId == teamId) {
+                BlockPos p = entry.getKey();
+                String key = p.getX() + "," + p.getZ();
+                if (seen.add(key)) {
+                    result.add(new int[]{p.getX(), p.getZ()});
+                }
+            }
+        }
+        return result;
+    }
+
     public static int getTowerHeight() {
         return WALL_TOWER_HEIGHT;
     }

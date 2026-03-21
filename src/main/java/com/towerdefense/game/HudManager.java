@@ -60,7 +60,7 @@ public class HudManager {
 
         int line = 14;
 
-        setLine(scoreboard, ChatFormatting.AQUA + "-- " + (soloMode ? "You" : "Player 1") + " --", line--);
+        setLine(scoreboard, ChatFormatting.AQUA + "-- You --", line--);
         setLine(scoreboard, ChatFormatting.GREEN + "  $ " + ChatFormatting.WHITE + p1Money + ChatFormatting.DARK_GREEN + " (+" + p1IncomeRate + "/10s)", line--);
         ChatFormatting hp1Color = hpColor(p1Hp, p1MaxHp);
         setLine(scoreboard, ChatFormatting.RED + "  \u2764 Nexus: " + hp1Color + p1Hp + "/" + p1MaxHp, line--);
@@ -68,7 +68,7 @@ public class HudManager {
 
         setLine(scoreboard, " ", line--);
 
-        setLine(scoreboard, ChatFormatting.LIGHT_PURPLE + "-- " + (soloMode ? "AI" : "Player 2") + " --", line--);
+        setLine(scoreboard, ChatFormatting.LIGHT_PURPLE + "-- " + (soloMode ? "AI" : "Opponent") + " --", line--);
         setLine(scoreboard, ChatFormatting.GREEN + "  $ " + ChatFormatting.WHITE + p2Money + ChatFormatting.DARK_GREEN + " (+" + p2IncomeRate + "/10s)", line--);
         ChatFormatting hp2Color = hpColor(p2Hp, p2MaxHp);
         setLine(scoreboard, ChatFormatting.RED + "  \u2764 Nexus: " + hp2Color + p2Hp + "/" + p2MaxHp, line--);
