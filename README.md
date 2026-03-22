@@ -1,23 +1,26 @@
 # Tower Defense Mod
 
 <p align="center">
-  <strong>A 2v2 tower defense mod for Minecraft</strong>
+  <strong>A tower defense mod for Minecraft — PvP, Solo vs AI, or Test mode</strong>
 </p>
 
-Two teams face off in an arena: defend your Nexus, build towers and walls, spawn mobs to attack the enemy, and use spells to turn the tide. The first team to lose their Nexus loses the game.
+Two teams face off in an arena: defend your Nexus, build towers and walls, spawn mobs to attack the enemy, and use spells to turn the tide. The first team to lose their Nexus loses the game. Supports multiplayer PvP, solo play against an AI opponent, and single-player test mode.
 
 ---
 
 ## ✨ Features
 
-- **2v2 PvP** — Two teams, two Nexuses, one winner
+- **PvP or Solo** — Two-team arena PvP, or solo mode vs AI with economic bonuses
 - **10 tower types** — From basic arrows to chain lightning and AOE explosions
 - **10 mob spawners** — Zombies, skeletons, ravagers, witches, iron golems, and more
 - **3 income generators** — Passive gold over time
 - **5 spells** — Fireball, Freeze, Heal Nexus, Lightning, Shield
 - **Wall blocks** — Wool, Oak, Cobblestone (4-block pillars, fireball-resistant)
+- **Minimap** — Live top-left HUD showing mobs, paths, towers, walls, spawners, generators, and both Nexuses. Your current money is shown bottom-right.
+- **Per-player sidebar** — Scoreboard shows "You" / "Opponent" HP and money, tailored to each player
 - **Lobby system** — Host creates, players join, manual start when ready
 - **Solo mode** — Play alone vs AI (villager avatar, resource allocation strategy, economic bonuses)
+- **Test mode** — One player controls both sides; crossing the midline auto-switches teams
 - **Configurable** — JSON config + web UI for balancing
 
 ---
@@ -36,7 +39,7 @@ Two teams face off in an arena: defend your Nexus, build towers and walls, spawn
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 1.21.4
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api)
-3. Download the mod JAR from [Releases](https://github.com/pamartn/tower-defense-mod/releases) or `build/libs/tower-defense-1.1.0.jar` (after building)
+3. Download the mod JAR from [Releases](https://github.com/pamartn/tower-defense-mod/releases) or build it yourself (see Build & Deploy below)
 4. Place the JAR in your `.minecraft/mods/` folder
 
 ---
@@ -58,6 +61,7 @@ All commands use the `/td` prefix.
 | `/td stop` | **Stop game** — End the current game. Host only in lobby. |
 | `/td status` | **Status** — Show game state and team sizes. |
 | `/td shop` | **Shop** — Open the Tower Shop (towers, walls, spawners, spells, upgrades). |
+| `/td test` | **Test mode** — Start single-player test mode from lobby (host only). Cross the midline to switch teams. |
 
 ### Game Flow
 
@@ -74,6 +78,10 @@ All commands use the `/td` prefix.
 ### Solo Mode
 
 When the host is alone in the lobby and runs `/td start` again, solo mode launches: you vs AI. The AI is represented by a villager that wanders on its half. The AI has economic bonuses (higher starting money, passive income, generator output) and allocates resources: ~15% income, ~35% defense (towers, walls), ~50% attack (spawners, spells). Config: `soloModeStartingMultiplier`, `soloModeIncomeMultiplier`, `soloModeGeneratorMultiplier` in `towerdefense.json`.
+
+### Test Mode
+
+Run `/td start` to create a lobby (alone), then `/td test` to enter test mode. One player controls both sides — crossing the midline automatically switches your active team. Useful for testing layouts without a second player.
 
 ---
 
@@ -170,24 +178,20 @@ cd tower-defense-mod
 ./gradlew build
 ```
 
-Output: `build/libs/tower-defense-1.1.0.jar`
+Output: `build/libs/tower-defense-<version>.jar`
 
-### Deploy to Remote Server
+### Deploy (local instance + server)
 
 ```bash
-python server_mod.py           # build + deploy
-python server_mod.py --build   # build only
-python server_mod.py --deploy  # deploy only (JAR must exist)
-python server_mod.py --restart # deploy + restart server
+./build_and_deploy.sh
 ```
 
-**Environment variables:**
+The script builds the mod, copies the JAR to your local Minecraft instance and your server mods folder, and restarts the server. On first run it will prompt for the paths and save them to `.deploy.conf`.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MOD_SERVER_HOST` | SSH host | `pi@raspberrypi.local` |
-| `MOD_SERVER_PATH` | Remote mods folder | `~/mc/mods` |
-| `MOD_SERVER_RESTART` | Restart command | `sudo systemctl restart minecraft` |
+```bash
+./build_and_deploy.sh --background   # non-blocking, streams output
+./build_and_deploy.sh --no-server    # skip server restart
+```
 
 ---
 
@@ -204,18 +208,22 @@ Config file: `towerdefense.json` in the server config directory.
 ```
 tower-defense-mod/
 ├── src/main/java/com/towerdefense/
-│   ├── arena/          # Arena, Nexus, WallBlockManager
+│   ├── ai/             # SoloAI — AI opponent logic
+│   ├── arena/          # Arena builder, Nexus, WallBlockManager, constants
 │   ├── command/        # /td commands
 │   ├── config/         # ConfigManager, TDConfig, ConfigWebServer
-│   ├── game/           # GameManager, PlayerState, MoneyManager
+│   ├── game/           # GameManager, LobbyManager, HudManager, PlayerState, MoneyManager
 │   ├── handler/        # Block placement (towers, walls, spawners)
 │   ├── mob/            # Ravager breach behavior
-│   ├── network/        # Shop networking
+│   ├── network/        # MinimapPayload and shop networking packets
 │   ├── shop/           # Shop items (WallShopItem, etc.)
 │   ├── spell/          # SpellManager, SpellType
-│   ├── tower/          # TowerManager, TowerRegistry
+│   ├── tower/          # TowerManager, TowerRegistry, TowerConstants
 │   └── wave/           # SpawnerManager, WaveSpawner, MobType
-├── server_mod.py       # Build & deploy script
+├── src/client/java/com/towerdefense/client/
+│   ├── MinimapRenderer.java   # Live minimap HUD
+│   └── ShopScreen.java        # Client-side shop UI
+├── build_and_deploy.sh # Build + deploy to instance & server
 └── README.md
 ```
 
