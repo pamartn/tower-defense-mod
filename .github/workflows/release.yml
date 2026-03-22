@@ -27,6 +27,10 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build --no-daemon
 
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Upload JAR to Release
         uses: softprops/action-gh-release@v2
         with:
@@ -34,3 +38,13 @@ jobs:
             build/libs/tower-defense-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Modrinth
+        uses: cloudnode-pro/modrinth-publish@v2
+        with:
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          project: 1ao0nXHy
+          version: ${{ steps.version.outputs.version }}
+          loaders: fabric
+          game-versions: "1.21.4"
+          files: build/libs/tower-defense-${{ steps.version.outputs.version }}.jar

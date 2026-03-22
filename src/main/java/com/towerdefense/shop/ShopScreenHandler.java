@@ -18,6 +18,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -120,23 +122,58 @@ public class ShopScreenHandler extends AbstractContainerMenu {
     // ─── Public factory methods for block items ───
 
     public static ItemStack createSpawnerItem(SpawnerType type) {
-        ItemStack s = new ItemStack(type.getTriggerBlock().asItem(), 1);
+        net.minecraft.world.item.Item baseItem = switch (type) {
+            case ZOMBIE_SPAWNER      -> net.minecraft.world.item.Items.ROTTEN_FLESH;
+            case SKELETON_SPAWNER    -> net.minecraft.world.item.Items.BONE;
+            case SPIDER_SPAWNER      -> net.minecraft.world.item.Items.STRING;
+            case RAVAGER_SPAWNER     -> net.minecraft.world.item.Items.SADDLE;
+            case BABY_ZOMBIE_SPAWNER -> net.minecraft.world.item.Items.LEATHER;
+            case CREEPER_SPAWNER     -> net.minecraft.world.item.Items.GREEN_DYE;
+            case ENDERMAN_SPAWNER    -> net.minecraft.world.item.Items.AMETHYST_SHARD;
+            case WITCH_SPAWNER       -> net.minecraft.world.item.Items.GLASS_BOTTLE;
+            case IRON_GOLEM_SPAWNER  -> net.minecraft.world.item.Items.IRON_INGOT;
+            case BOSS_SPAWNER        -> net.minecraft.world.item.Items.TOTEM_OF_UNDYING;
+        };
+        ItemStack s = new ItemStack(baseItem, 1);
         s.set(DataComponents.CUSTOM_NAME, Component.literal(type.getName() + " ($" + type.getPrice() + ")").withStyle(ChatFormatting.AQUA));
         s.set(DataComponents.MAX_STACK_SIZE, 1);
+        CompoundTag spawnerTag = new CompoundTag();
+        spawnerTag.putString("td_category", "spawner");
+        spawnerTag.putString("td_id", type.name());
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(spawnerTag));
         return s;
     }
 
     public static ItemStack createGeneratorItem(IncomeGeneratorType type) {
-        ItemStack s = new ItemStack(type.getTriggerBlock().asItem(), 1);
+        net.minecraft.world.item.Item baseItem = switch (type) {
+            case BASIC    -> net.minecraft.world.item.Items.GOLD_NUGGET;
+            case ADVANCED -> net.minecraft.world.item.Items.EMERALD;
+            case ELITE    -> net.minecraft.world.item.Items.NETHERITE_INGOT;
+        };
+        ItemStack s = new ItemStack(baseItem, 1);
         s.set(DataComponents.CUSTOM_NAME, Component.literal(type.getName() + " ($" + type.getPrice() + ")").withStyle(ChatFormatting.GOLD));
         s.set(DataComponents.MAX_STACK_SIZE, 1);
+        CompoundTag genTag = new CompoundTag();
+        genTag.putString("td_category", "generator");
+        genTag.putString("td_id", type.name());
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(genTag));
         return s;
     }
 
     public static ItemStack createWallItem(WallShopItem item) {
-        ItemStack s = new ItemStack(item.block().asItem(), 1);
+        net.minecraft.world.item.Item baseItem = switch (item.name()) {
+            case "Wool Wall"         -> net.minecraft.world.item.Items.WHITE_DYE;
+            case "Oak Planks Wall"   -> net.minecraft.world.item.Items.BROWN_DYE;
+            case "Cobblestone Wall"  -> net.minecraft.world.item.Items.GRAY_DYE;
+            default                  -> net.minecraft.world.item.Items.FLINT;
+        };
+        ItemStack s = new ItemStack(baseItem, 1);
         s.set(DataComponents.CUSTOM_NAME, Component.literal(item.name() + " ($" + item.price() + ")").withStyle(ChatFormatting.WHITE));
         s.set(DataComponents.MAX_STACK_SIZE, 1);
+        CompoundTag wallTag = new CompoundTag();
+        wallTag.putString("td_category", "wall");
+        wallTag.putString("td_id", item.name());
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(wallTag));
         return s;
     }
 
@@ -219,7 +256,7 @@ public class ShopScreenHandler extends AbstractContainerMenu {
         }
         if (recipe == null) return false;
 
-        ItemStack towerBlock = PlayerKit.createTowerBlock(recipe);
+        ItemStack towerBlock = PlayerKit.createTowerItem(recipe);
         giveItem(towerBlock, serverPlayer, pick);
         return true;
     }

@@ -145,22 +145,17 @@ public class ArenaManager implements ArenaBuilder {
     // ──────────────────────────────────────────
 
     private void generateInnerWall(ServerLevel world, BlockPos origin) {
-        int wallH = 5;
-        int archSpacing = 8;
-        int archWidth = 3;
+        int wallH = ArenaConstants.INNER_WALL_HEIGHT;
+        int archSpacing = ArenaConstants.ARCH_SPACING;
+        int archWidth = ArenaConstants.ARCH_WIDTH;
 
         for (int i = 0; i < 4; i++) {
             boolean isXWall = (i == 0 || i == 1);
             int length = size() + 2;
 
             for (int t = 0; t < length; t++) {
-                int wx, wz;
-                switch (i) {
-                    case 0 -> { wx = t - 1; wz = -1; }    // north
-                    case 1 -> { wx = t - 1; wz = size(); } // south
-                    case 2 -> { wx = -1;    wz = t - 1; }    // west
-                    default -> { wx = size(); wz = t - 1; } // east
-                }
+                int[] off = offsetForSide(i, t - 1, 0);
+                int wx = off[0], wz = off[1];
 
                 boolean inArch = false;
                 int posInWall = t;
@@ -168,7 +163,7 @@ public class ArenaManager implements ArenaBuilder {
                 int relToArch = ((posInWall - archCenter) % archSpacing + archSpacing) % archSpacing;
                 int distFromArchCenter = Math.abs(relToArch - archSpacing / 2);
 
-                if (distFromArchCenter <= archWidth / 2 && posInWall >= 4 && posInWall < length - 4) {
+                if (distFromArchCenter <= archWidth / 2 && posInWall >= ArenaConstants.ARCH_EDGE_MARGIN && posInWall < length - ArenaConstants.ARCH_EDGE_MARGIN) {
                     inArch = true;
                 }
 
@@ -212,12 +207,9 @@ public class ArenaManager implements ArenaBuilder {
     // ──────────────────────────────────────────
 
     private void generateStands(ServerLevel world, BlockPos origin) {
-        int rows = 10;
-        int innerWallH = 5;
-
-        for (int row = 0; row < rows; row++) {
-            int seatY = innerWallH + 1 + row;
-            int outward = 2 + row;
+        for (int row = 0; row < ArenaConstants.STAND_ROWS; row++) {
+            int seatY = ArenaConstants.INNER_WALL_HEIGHT + 1 + row;
+            int outward = ArenaConstants.RING_BASE_OFFSET + row;
 
             for (int side = 0; side < 4; side++) {
                 buildBleacherRow(world, origin, side, outward, seatY);
@@ -229,13 +221,8 @@ public class ArenaManager implements ArenaBuilder {
         int len = size() + 2 * outward;
 
         for (int t = 0; t < len; t++) {
-            int wx, wz;
-            switch (side) {
-                case 0 -> { wx = t - outward; wz = -1 - outward; }
-                case 1 -> { wx = t - outward; wz = size() + outward; }
-                case 2 -> { wx = -1 - outward; wz = t - outward; }
-                default -> { wx = size() + outward; wz = t - outward; }
-            }
+            int[] off = offsetForSide(side, t, outward);
+            int wx = off[0], wz = off[1];
 
             BlockPos base = origin.offset(wx, 0, wz);
             place(world, base, Blocks.BEDROCK);
@@ -262,22 +249,15 @@ public class ArenaManager implements ArenaBuilder {
     // ──────────────────────────────────────────
 
     private void generateTopRing(ServerLevel world, BlockPos origin) {
-        int rows = 10;
-        int innerWallH = 5;
-        int topY = innerWallH + 1 + rows;
-        int ringOffset = 2 + rows;
+        int topY = ArenaConstants.STAND_TOP_Y;
+        int ringOffset = ArenaConstants.STAND_RING_OFFSET;
 
         for (int side = 0; side < 4; side++) {
             int len = size() + 2 * ringOffset;
 
             for (int t = 0; t < len; t++) {
-                int wx, wz;
-                switch (side) {
-                    case 0 -> { wx = t - ringOffset; wz = -1 - ringOffset; }
-                    case 1 -> { wx = t - ringOffset; wz = size() + ringOffset; }
-                    case 2 -> { wx = -1 - ringOffset; wz = t - ringOffset; }
-                    default -> { wx = size() + ringOffset; wz = t - ringOffset; }
-                }
+                int[] off = offsetForSide(side, t, ringOffset);
+                int wx = off[0], wz = off[1];
 
                 BlockPos base = origin.offset(wx, 0, wz);
                 place(world, base, Blocks.BEDROCK);
@@ -290,14 +270,14 @@ public class ArenaManager implements ArenaBuilder {
 
                 place(world, origin.offset(wx, topY, wz), Blocks.SMOOTH_SANDSTONE);
 
-                boolean isColumnPos = (t % 6 == 0);
-                boolean isMerlon = (t % 3 == 0) && !isColumnPos;
+                boolean isColumnPos = (t % ArenaConstants.COLUMN_SPACING == 0);
+                boolean isMerlon = (t % ArenaConstants.MERLON_SPACING == 0) && !isColumnPos;
 
                 if (isColumnPos) {
-                    for (int cy = 1; cy <= 4; cy++) {
+                    for (int cy = 1; cy <= ArenaConstants.PARAPET_PILLAR_HEIGHT; cy++) {
                         place(world, origin.offset(wx, topY + cy, wz), Blocks.QUARTZ_PILLAR);
                     }
-                    place(world, origin.offset(wx, topY + 5, wz), Blocks.SMOOTH_SANDSTONE_SLAB);
+                    place(world, origin.offset(wx, topY + ArenaConstants.PARAPET_PILLAR_HEIGHT + 1, wz), Blocks.SMOOTH_SANDSTONE_SLAB);
                 } else if (isMerlon) {
                     place(world, origin.offset(wx, topY + 1, wz), Blocks.SANDSTONE_WALL);
                     place(world, origin.offset(wx, topY + 2, wz), Blocks.SANDSTONE_WALL);
@@ -325,7 +305,7 @@ public class ArenaManager implements ArenaBuilder {
                     int wz = c[1] + dz;
 
                     place(world, origin.offset(wx, 0, wz), Blocks.BEDROCK);
-                    for (int dy = 1; dy <= topY + 6; dy++) {
+                    for (int dy = 1; dy <= topY + ArenaConstants.LANTERN_ABOVE_TOP; dy++) {
                         boolean isEdge = dx == 0 || dx == 2 || dz == 0 || dz == 2;
                         if (isEdge) {
                             place(world, origin.offset(wx, dy, wz), Blocks.SMOOTH_SANDSTONE);
@@ -352,23 +332,15 @@ public class ArenaManager implements ArenaBuilder {
     // ──────────────────────────────────────────
 
     private void generateTorches(ServerLevel world, BlockPos origin) {
-        int rows = 10;
-        int innerWallH = 5;
-
-        for (int row = 0; row < rows; row += 2) {
-            int seatY = innerWallH + 1 + row;
-            int outward = 2 + row;
+        for (int row = 0; row < ArenaConstants.STAND_ROWS; row += 2) {
+            int seatY = ArenaConstants.INNER_WALL_HEIGHT + 1 + row;
+            int outward = ArenaConstants.RING_BASE_OFFSET + row;
 
             for (int side = 0; side < 4; side++) {
                 int len = size() + 2 * outward;
-                for (int t = 0; t < len; t += 4) {
-                    int wx, wz;
-                    switch (side) {
-                        case 0 -> { wx = t - outward; wz = -1 - outward; }
-                        case 1 -> { wx = t - outward; wz = size() + outward; }
-                        case 2 -> { wx = -1 - outward; wz = t - outward; }
-                        default -> { wx = size() + outward; wz = t - outward; }
-                    }
+                for (int t = 0; t < len; t += ArenaConstants.TORCH_SPACING) {
+                    int[] off = offsetForSide(side, t, outward);
+                    int wx = off[0], wz = off[1];
                     BlockPos torchBase = origin.offset(wx, seatY + 1, wz);
                     place(world, torchBase, Blocks.OAK_FENCE);
                     place(world, torchBase.above(), Blocks.TORCH);
@@ -382,13 +354,10 @@ public class ArenaManager implements ArenaBuilder {
     // ──────────────────────────────────────────
 
     private void generateVelarium(ServerLevel world, BlockPos origin) {
-        int rows = 10;
-        int innerWallH = 5;
-        int topY = innerWallH + 1 + rows;
-        int canopyY = topY + 10;
-        int ringOffset = 2 + rows;
-
-        int canopyDepth = 8;
+        int topY = ArenaConstants.STAND_TOP_Y;
+        int canopyY = topY + ArenaConstants.CANOPY_ABOVE_TOP;
+        int ringOffset = ArenaConstants.STAND_RING_OFFSET;
+        int canopyDepth = ArenaConstants.CANOPY_DEPTH;
 
         for (int side = 0; side < 4; side++) {
             int len = size() + 2 * ringOffset;
@@ -408,7 +377,9 @@ public class ArenaManager implements ArenaBuilder {
 
         for (int side = 0; side < 4; side++) {
             int len = size() + 2 * ringOffset;
-            for (int t = 0; t < len; t += 6) {
+            for (int t = 0; t < len; t += ArenaConstants.VELARIUM_FENCE_SPACING) {
+                // Fence poles sit at the outer edge (outward = ringOffset - 1 in the standard formula,
+                // but the wz/wx for case 0 is -ringOffset not -1-ringOffset, so we build it inline).
                 int wx, wz;
                 switch (side) {
                     case 0 -> { wx = t - ringOffset; wz = -ringOffset; }
@@ -430,13 +401,9 @@ public class ArenaManager implements ArenaBuilder {
     private void generateEntrances(ServerLevel world, BlockPos origin) {
         int midX = size() / 2;
         int midZ = size() / 2;
-        int tiers = 4;
-        int tierHeight = 3;
-        int tierDepth = 3;
-        int innerWallH = 5;
-        int topY = innerWallH + 1 + tiers * tierHeight;
-        int totalDepth = 2 + tiers * tierDepth;
-        int gateWidth = 5;
+        int topY = ArenaConstants.ENTRANCE_TOP_Y;
+        int totalDepth = ArenaConstants.RING_BASE_OFFSET + ArenaConstants.ENTRANCE_TIERS * ArenaConstants.ENTRANCE_TIER_DEPTH;
+        int gateWidth = ArenaConstants.GATE_WIDTH;
         int gateHeight = topY - 2;
 
         int[][] gateConfigs = {
@@ -525,19 +492,16 @@ public class ArenaManager implements ArenaBuilder {
     // ──────────────────────────────────────────
 
     private void generateDecorations(ServerLevel world, BlockPos origin) {
-        int innerWallH = 5;
-        int tiers = 4;
-        int tierHeight = 3;
-        int topY = innerWallH + 1 + tiers * tierHeight;
+        int topY = ArenaConstants.ENTRANCE_TOP_Y;
 
         placeIronBarRailings(world, origin);
         placeLanterns(world, origin, topY);
         placeVipBoxes(world, origin, topY);
-        placeBanners(world, origin, innerWallH);
+        placeBanners(world, origin, ArenaConstants.INNER_WALL_HEIGHT);
     }
 
     private void placeIronBarRailings(ServerLevel world, BlockPos origin) {
-        int railY = 6;
+        int railY = ArenaConstants.RAIL_HEIGHT;
 
         for (int x = -1; x <= size(); x++) {
             place(world, origin.offset(x, railY, -1), Blocks.IRON_BARS);
@@ -550,22 +514,19 @@ public class ArenaManager implements ArenaBuilder {
     }
 
     private void placeLanterns(ServerLevel world, BlockPos origin, int topY) {
-        int ringOffset = 2 + 4 * 3;
+        // Lanterns sit at the outer edge of the entrance structure
+        // (totalDepth = RING_BASE_OFFSET + ENTRANCE_TIERS * ENTRANCE_TIER_DEPTH = 14)
+        int ringOffset = ArenaConstants.RING_BASE_OFFSET + ArenaConstants.ENTRANCE_TIERS * ArenaConstants.ENTRANCE_TIER_DEPTH;
 
         for (int side = 0; side < 4; side++) {
             int len = size() + 2 * ringOffset;
             for (int t = 0; t < len; t++) {
-                if (t % 6 != 0) continue;
+                if (t % ArenaConstants.COLUMN_SPACING != 0) continue;
 
-                int wx, wz;
-                switch (side) {
-                    case 0 -> { wx = t - ringOffset; wz = -1 - ringOffset; }
-                    case 1 -> { wx = t - ringOffset; wz = size() + ringOffset; }
-                    case 2 -> { wx = -1 - ringOffset; wz = t - ringOffset; }
-                    default -> { wx = size() + ringOffset; wz = t - ringOffset; }
-                }
+                int[] off = offsetForSide(side, t, ringOffset);
+                int wx = off[0], wz = off[1];
 
-                place(world, origin.offset(wx, topY + 6, wz), Blocks.LANTERN);
+                place(world, origin.offset(wx, topY + ArenaConstants.LANTERN_ABOVE_TOP, wz), Blocks.LANTERN);
             }
         }
     }
@@ -611,7 +572,7 @@ public class ArenaManager implements ArenaBuilder {
         for (int side = 0; side < 4; side++) {
             int len = size() + 2;
             for (int t = 0; t < len; t++) {
-                if (t % 8 != 0) continue;
+                if (t % ArenaConstants.BANNER_SPACING != 0) continue;
 
                 int wx, wz;
                 Direction facing;
@@ -627,6 +588,27 @@ public class ArenaManager implements ArenaBuilder {
                 place(world, origin.offset(wx, bannerY, wz), banner);
             }
         }
+    }
+
+    // ──────────────────────────────────────────
+    //  Side-offset helper
+    // ──────────────────────────────────────────
+
+    /**
+     * Returns {@code [wx, wz]} for the given arena side and along-side position.
+     * The four sides are numbered: 0 = north, 1 = south, 2 = west, 3 = east.
+     *
+     * @param side    side index (0–3)
+     * @param t       position along the side (0-based)
+     * @param outward outward distance from the arena edge (0 = flush with inner wall)
+     */
+    private int[] offsetForSide(int side, int t, int outward) {
+        return switch (side) {
+            case 0 -> new int[]{ t - outward,       -1 - outward      }; // north
+            case 1 -> new int[]{ t - outward,        size() + outward  }; // south
+            case 2 -> new int[]{ -1 - outward,       t - outward       }; // west
+            default -> new int[]{ size() + outward,  t - outward       }; // east
+        };
     }
 
     // ──────────────────────────────────────────

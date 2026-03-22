@@ -512,4 +512,145 @@ public class ConfigManager {
     public int getSpeedBoostDurationTicks() { return configRef.get().gameEvents.speedBoostDurationTicks; }
     public int getStructureDestroyedBounty() { return configRef.get().gameEvents.structureDestroyedBounty; }
     public int getOreSpawnIntervalTicks() { return configRef.get().gameEvents.oreSpawnIntervalTicks; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Grouped accessor classes — new code can use these instead of the flat
+    //  getters above.  Existing callers are unaffected.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Grouped accessors for game-level settings. */
+    public final class GameSettings {
+        private GameSettings() {}
+        public int  startingMoney()              { return getStartingMoney(); }
+        public int  nexusMaxHp()                 { return getNexusMaxHp(); }
+        public int  tier2Cost()                  { return getTier2Cost(); }
+        public int  tier3Cost()                  { return getTier3Cost(); }
+        public double nexusExplosionRadius()     { return getNexusExplosionRadius(); }
+        public int  prepPhaseTicks()             { return getPrepPhaseTicks(); }
+        public int  basePassiveIncome()          { return getBasePassiveIncome(); }
+        public int  basePassiveInterval()        { return getBasePassiveInterval(); }
+        public int  defeatDelayTicks()           { return getDefeatDelayTicks(); }
+        public int  chainExplosionDelay()        { return getChainExplosionDelay(); }
+        public double soloModeStartingMultiplier()  { return getSoloModeStartingMultiplier(); }
+        public double soloModeIncomeMultiplier()    { return getSoloModeIncomeMultiplier(); }
+        public double soloModeGeneratorMultiplier() { return getSoloModeGeneratorMultiplier(); }
+    }
+
+    /** Grouped accessors for arena geometry settings. */
+    public final class ArenaConfig {
+        private ArenaConfig() {}
+        public int arenaSize()    { return getArenaSize(); }
+        public int wallHeight()   { return getArenaWallHeight(); }
+        public int arenaY()       { return getArenaY(); }
+        public int standDepth()   { return getStandDepth(); }
+        public int standHeight()  { return getStandHeight(); }
+    }
+
+    /** Grouped accessors for mob stats. */
+    public final class MobConfig {
+        private MobConfig() {}
+        public double baseHp(com.towerdefense.wave.MobType t)     { return getMobBaseHp(t); }
+        public double speed(com.towerdefense.wave.MobType t)      { return getMobSpeed(t); }
+        public int nexusDamage(com.towerdefense.wave.MobType t)   { return getMobNexusDamage(t); }
+        public int moneyReward(com.towerdefense.wave.MobType t)   { return getMobMoneyReward(t); }
+    }
+
+    /** Grouped accessors for tower stats and effects. */
+    public final class TowerConfig {
+        private TowerConfig() {}
+        public int    power(com.towerdefense.tower.TowerType t)     { return getTowerPower(t); }
+        public double range(com.towerdefense.tower.TowerType t)     { return getTowerRange(t); }
+        public int    fireRate(com.towerdefense.tower.TowerType t)  { return getTowerFireRate(t); }
+        public int    price(com.towerdefense.tower.TowerType t)     { return getTowerPrice(t); }
+        public int    tier(com.towerdefense.tower.TowerType t)      { return getTowerTier(t); }
+        // effects
+        public int    fireTicks()              { return getFireTicks(); }
+        public int    slowDurationTicks()      { return getSlowDurationTicks(); }
+        public int    slowAmplifier()          { return getSlowAmplifier(); }
+        public int    poisonDurationTicks()    { return getPoisonDurationTicks(); }
+        public int    poisonAmplifier()        { return getPoisonAmplifier(); }
+        public int    chainLightningBoxSize()  { return getChainLightningBoxSize(); }
+        public int    chainLightningMaxTargets() { return getChainLightningMaxTargets(); }
+        public double aoeBoxSize()             { return getAoeBoxSize(); }
+        public double aoeDamageRadius()        { return getAoeDamageRadius(); }
+    }
+
+    /** Grouped accessors for spawner stats and effects. */
+    public final class SpawnerConfig {
+        private SpawnerConfig() {}
+        public int    price(com.towerdefense.wave.SpawnerType t)    { return getSpawnerPrice(t); }
+        public int    interval(com.towerdefense.wave.SpawnerType t) { return getSpawnerInterval(t); }
+        public int    tier(com.towerdefense.wave.SpawnerType t)     { return getSpawnerTier(t); }
+        // effects
+        public double spawnSpread()             { return getSpawnSpread(); }
+        public double endermanTeleportRange()   { return getEndermanTeleportRange(); }
+        public int    witchHealBoxSize()        { return getWitchHealBoxSize(); }
+        public int    witchHealIntervalTicks()  { return getWitchHealIntervalTicks(); }
+        public double witchHealPercent()        { return getWitchHealPercent(); }
+        public double witchHealMinPercent()     { return getWitchHealMinPercent(); }
+        public double witchHealDecayFactor()    { return getWitchHealDecayFactor(); }
+        public double followRange()             { return getFollowRange(); }
+        public int    specialMobTickInterval()  { return getSpecialMobTickInterval(); }
+    }
+
+    /** Grouped accessors for income generator stats. */
+    public final class GeneratorConfig {
+        private GeneratorConfig() {}
+        public int price(com.towerdefense.game.IncomeGeneratorType t)          { return getGeneratorPrice(t); }
+        public int incomeAmount(com.towerdefense.game.IncomeGeneratorType t)   { return getGeneratorIncomeAmount(t); }
+        public int incomeInterval(com.towerdefense.game.IncomeGeneratorType t) { return getGeneratorIncomeInterval(t); }
+        public int tier(com.towerdefense.game.IncomeGeneratorType t)           { return getGeneratorTier(t); }
+    }
+
+    /** Grouped accessors for spell stats and effects. */
+    public final class SpellConfig {
+        private SpellConfig() {}
+        public int price(com.towerdefense.spell.SpellType t) { return getSpellPrice(t); }
+        public int tier(com.towerdefense.spell.SpellType t)  { return getSpellTier(t); }
+        // effects
+        public int    fireballLifetime()         { return getFireballLifetime(); }
+        public double fireballExplosionRadius()  { return getFireballExplosionRadius(); }
+        public int    freezeDurationTicks()      { return getFreezeDurationTicks(); }
+        public int    healNexusAmount()          { return getHealNexusAmount(); }
+        public int    lightningBoxSize()         { return getLightningBoxSize(); }
+        public int    lightningDamage()          { return getLightningDamage(); }
+        public int    shieldDurationTicks()      { return getShieldDurationTicks(); }
+    }
+
+    /** Grouped accessors for upgrade costs and multipliers. */
+    public final class UpgradeConfig {
+        private UpgradeConfig() {}
+        public int    baseCost(com.towerdefense.wave.MobUpgradeManager.UpgradeType t) { return getUpgradeBaseCost(t); }
+        public int    spawnerExtraCostPerUpgrade()           { return getSpawnerExtraCostPerUpgrade(); }
+        public double hpMultiplierPerLevel()                 { return getHpMultiplierPerLevel(); }
+        public double speedMultiplierPerLevel()              { return getSpeedMultiplierPerLevel(); }
+        public int    towerUpgradeBaseCost()                 { return getTowerUpgradeBaseCost(); }
+        public double towerPowerMultiplierPerLevel()         { return getTowerPowerMultiplierPerLevel(); }
+        public double towerFireRateMultiplierPerLevel()      { return getTowerFireRateMultiplierPerLevel(); }
+        public double towerEffectDurationMultiplierPerLevel(){ return getTowerEffectDurationMultiplierPerLevel(); }
+    }
+
+    /** Grouped accessors for game-event settings. */
+    public final class EventConfig {
+        private EventConfig() {}
+        public int waveEventIntervalTicks()   { return getWaveEventIntervalTicks(); }
+        public int bonusMoney()               { return getBonusMoney(); }
+        public int doubleIncomeMultiplier()   { return getDoubleIncomeMultiplier(); }
+        public int speedBoostDurationTicks()  { return getSpeedBoostDurationTicks(); }
+        public int structureDestroyedBounty() { return getStructureDestroyedBounty(); }
+        public int oreSpawnIntervalTicks()    { return getOreSpawnIntervalTicks(); }
+    }
+
+    // ─── Typed group accessors ────────────────────────────────────────────────
+    // Usage: ConfigManager.getInstance().game().startingMoney()
+
+    public GameSettings   game()       { return new GameSettings(); }
+    public ArenaConfig    arena()      { return new ArenaConfig(); }
+    public MobConfig      mobs()       { return new MobConfig(); }
+    public TowerConfig    towers()     { return new TowerConfig(); }
+    public SpawnerConfig  spawners()   { return new SpawnerConfig(); }
+    public GeneratorConfig generators(){ return new GeneratorConfig(); }
+    public SpellConfig    spells()     { return new SpellConfig(); }
+    public UpgradeConfig  upgrades()   { return new UpgradeConfig(); }
+    public EventConfig    events()     { return new EventConfig(); }
 }

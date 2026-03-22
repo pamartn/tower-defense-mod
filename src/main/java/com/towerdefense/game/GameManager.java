@@ -15,7 +15,6 @@ import com.towerdefense.tower.TowerUpgradeManager;
 import com.towerdefense.wave.MobType;
 import com.towerdefense.wave.MobUpgradeManager;
 import com.towerdefense.wave.SpawnerManager;
-import com.towerdefense.wave.SpawnerType;
 import com.towerdefense.network.MinimapPayload;
 import com.towerdefense.wave.MobTags;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -24,8 +23,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.npc.Villager;
@@ -39,45 +36,50 @@ public class GameManager implements StructureEventSink, IGameSession {
 
     public enum GameState { IDLE, LOBBY, PREP_PHASE, PLAYING, GAME_OVER }
 
-    private GameState state = GameState.IDLE;
-    private int tickCounter;
-    private int passiveIncomeTicker;
-    private int incomeDisplayTicker;
-    private int waveEventTicker;
-    private int minimapTicker;
-    private int restoreHealthTicker;
-    private final java.util.Random eventRandom = new java.util.Random();
+    // Package-private so LobbyManager and GamePhaseManager can access them directly.
+    GameState state = GameState.IDLE;
+    int tickCounter;
+    int passiveIncomeTicker;
+    int incomeDisplayTicker;
+    int waveEventTicker;
+    int minimapTicker;
+    int restoreHealthTicker;
+    final java.util.Random eventRandom = new java.util.Random();
 
-    private ServerLevel world;
-    private TeamState team1;
-    private TeamState team2;
-    private final Map<UUID, PlayerState> playerStates = new HashMap<>();
-    private GameLobby lobby;
+    ServerLevel world;
+    TeamState team1;
+    TeamState team2;
+    final Map<UUID, PlayerState> playerStates = new HashMap<>();
+    GameLobby lobby;
     /** target -> requester: player who can accept (target) and player who wants to join (requester) */
-    private final Map<UUID, UUID> pendingJoinRequests = new HashMap<>();
+    final Map<UUID, UUID> pendingJoinRequests = new HashMap<>();
 
-    private final ArenaBuilder arenaBuilder;
-    private final ArenaManager arenaManager;
-    private final PathValidator pathValidator = new PathValidator();
-    private final PlayerKit playerKit = new PlayerKit();
-    private final SpawnerManager spawnerManager = new SpawnerManager();
-    private final IncomeGeneratorManager incomeGeneratorManager = new IncomeGeneratorManager();
-    private final MobUpgradeManager mobUpgradeManager = new MobUpgradeManager();
-    private final TowerUpgradeManager towerUpgradeManager = new TowerUpgradeManager();
-    private final HudManager hudManager = new HudManager();
-    private final NexusBossBarManager nexusBossBarManager = new NexusBossBarManager();
-    private final SpectatorManager spectatorManager = new SpectatorManager();
-    private final SpellManager spellManager = new SpellManager();
-    private final TierManager tierManager = new TierManager();
-    private final OreManager oreManager = new OreManager(this);
-    private final WallBlockManager wallBlockManager = new WallBlockManager();
+    // Package-private so LobbyManager and GamePhaseManager can access them directly.
+    final ArenaBuilder arenaBuilder;
+    final ArenaManager arenaManager;
+    final PathValidator pathValidator = new PathValidator();
+    final PlayerKit playerKit = new PlayerKit();
+    final SpawnerManager spawnerManager = new SpawnerManager();
+    final IncomeGeneratorManager incomeGeneratorManager = new IncomeGeneratorManager();
+    final MobUpgradeManager mobUpgradeManager = new MobUpgradeManager();
+    final TowerUpgradeManager towerUpgradeManager = new TowerUpgradeManager();
+    final HudManager hudManager = new HudManager();
+    final NexusBossBarManager nexusBossBarManager = new NexusBossBarManager();
+    final SpectatorManager spectatorManager = new SpectatorManager();
+    final SpellManager spellManager = new SpellManager();
+    final TierManager tierManager = new TierManager();
+    final OreManager oreManager = new OreManager(this);
+    final WallBlockManager wallBlockManager = new WallBlockManager();
 
-    private TowerManager towerManager;
-    private int playingPhaseTicks;
+    TowerManager towerManager;
+    int playingPhaseTicks;
 
-    private GameMode gameMode = GameMode.PVP;
-    private SoloAI soloAI;
-    private Villager aiVillagerEntity;
+    GameMode gameMode = GameMode.PVP;
+    SoloAI soloAI;
+    Villager aiVillagerEntity;
+
+    private final LobbyManager lobbyManager = new LobbyManager(this);
+    private final GamePhaseManager gamePhaseManager = new GamePhaseManager(this);
 
     /** Production constructor: uses a real {@link ArenaManager}. */
     public GameManager() {
@@ -99,208 +101,26 @@ public class GameManager implements StructureEventSink, IGameSession {
         if (towerManager != null) towerManager.setTowerUpgradeManager(towerUpgradeManager);
     }
 
-    // ─── Start / Lobby / Add Player ───
+    // ─── Start / Lobby / Add Player (delegates to LobbyManager) ───
 
     /** Host creates lobby. Host is in team 1. */
-    public void startGame(ServerPlayer host) {
-        if (state != GameState.IDLE) return;
-
-        this.world = host.serverLevel();
-        BlockPos origin = host.blockPosition().below().offset(-GameConfig.ARENA_SIZE() / 2, 0, -GameConfig.ARENA_SIZE() / 2);
-        origin = new BlockPos(origin.getX(), GameConfig.ARENA_Y(), origin.getZ());
-        GameConfig.arenaOrigin = origin;
-
-        BlockPos nexus1 = GameConfig.getPlayer1NexusCenter();
-        BlockPos nexus2 = GameConfig.getPlayer2NexusCenter();
-        team1 = new TeamState(1, nexus1, nexus2);
-        team2 = new TeamState(2, nexus2, nexus1);
-
-        lobby = new GameLobby(host.getUUID());
-        state = GameState.LOBBY;
-        addPlayerToGame(host, 1);
-
-        host.sendSystemMessage(Component.literal("Lobby created! Use /td invite <player> or players can /td join to join.")
-                .withStyle(ChatFormatting.GREEN));
-        TowerDefenseMod.LOGGER.info("Tower Defense lobby created by {}", host.getName().getString());
-    }
+    public void startGame(ServerPlayer host) { lobbyManager.startGame(host); }
 
     /** Legacy: start with 2 players (no lobby). Used when td start is called with 2 players online. */
-    public void startGame(ServerPlayer p1, ServerPlayer p2) {
-        startGame(p1);
-        addPlayerToGame(p2, 2);
-    }
+    public void startGame(ServerPlayer p1, ServerPlayer p2) { lobbyManager.startGame(p1, p2); }
 
     /** Host manually starts the game from lobby. Requires 2+ players. Returns true if started. */
-    public boolean startGameFromLobby(ServerPlayer caller) {
-        if (state != GameState.LOBBY || lobby == null) return false;
-        if (!lobby.getHostUUID().equals(caller.getUUID())) return false;
-        if (!lobby.canStart(team1.getMemberCount(), team2.getMemberCount())) return false;
-
-        transitionLobbyToPrep();
-        return true;
-    }
+    public boolean startGameFromLobby(ServerPlayer caller) { return lobbyManager.startGameFromLobby(caller); }
 
     /** Start solo mode: host alone vs AI. */
-    public void startSoloMode(ServerPlayer host) {
-        if (state != GameState.LOBBY || lobby == null) return;
-        if (!lobby.getHostUUID().equals(host.getUUID())) return;
-
-        gameMode = GameMode.SOLO;
-        transitionLobbyToPrep();
-        host.sendSystemMessage(Component.literal("Solo mode! You vs AI. Good luck!")
-                .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD));
-        TowerDefenseMod.LOGGER.info("Tower Defense solo mode started by {}", host.getName().getString());
-    }
+    public void startSoloMode(ServerPlayer host) { lobbyManager.startSoloMode(host); }
 
     /** Start test mode: one player controls both sides. Crossing the midline auto-switches teams. */
-    public void startTestMode(ServerPlayer host) {
-        if (state != GameState.LOBBY || lobby == null) return;
-        if (!lobby.getHostUUID().equals(host.getUUID())) return;
-
-        gameMode = GameMode.TEST;
-        transitionLobbyToPrep();
-        host.sendSystemMessage(Component.literal("Test mode! Cross the midline to switch teams.")
-                .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
-        TowerDefenseMod.LOGGER.info("Tower Defense test mode started by {}", host.getName().getString());
-    }
+    public void startTestMode(ServerPlayer host) { lobbyManager.startTestMode(host); }
 
     /** Add player to team. In LOBBY, host must use /td start to begin. */
     public boolean addPlayerToGame(ServerPlayer player, int team) {
-        if (state == GameState.IDLE) return false;
-        TeamState targetTeam = team == 1 ? team1 : team2;
-        if (targetTeam == null) return false;
-        if (targetTeam.contains(player.getUUID())) return true;
-
-        targetTeam.addMember(player.getUUID());
-        PlayerState ps = new PlayerState(player, targetTeam);
-        playerStates.put(player.getUUID(), ps);
-
-        setupMoneyNotification(targetTeam);
-
-        if (state == GameState.LOBBY) {
-            if (lobby == null || !lobby.getHostUUID().equals(player.getUUID())) {
-                player.sendSystemMessage(Component.literal("Joined! Host can start with /td start when ready.")
-                        .withStyle(ChatFormatting.GREEN));
-            }
-            return true;
-        }
-
-        // PREP or PLAYING: join anytime
-        nexusBossBarManager.addPlayer(player, team);
-        playerKit.setupPlayer(player);
-        if (state == GameState.PREP_PHASE) {
-            playerKit.giveStartingKit(player);
-        }
-        targetTeam.getMoneyManager().reset();
-        BlockPos spawn = team == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
-        player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
-        tierManager.initTeam(team);
-        HudManager.sendTitle(player,
-                Component.literal("You joined the game!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
-                Component.literal("").withStyle(ChatFormatting.GRAY), 5, 40, 10);
-        return true;
-    }
-
-    private void setupMoneyNotification(TeamState team) {
-        team.getMoneyManager().setOnMoneyAdded(amount -> {
-            for (UUID uuid : team.getMembers()) {
-                ServerPlayer p = world.getServer().getPlayerList().getPlayer(uuid);
-                if (p != null && p.isAlive()) {
-                    HudManager.sendActionBar(p, Component.literal("+$" + amount).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD));
-                    p.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5f, 1.2f);
-                }
-            }
-        });
-    }
-
-    private void transitionLobbyToPrep() {
-        arenaBuilder.generate(world, GameConfig.arenaOrigin);
-        world.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, world.getServer());
-        world.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(false, world.getServer());
-        world.setDayTime(18000L);
-        killAllNonPlayerEntities();
-        spectatorManager.spawnSpectators(world, GameConfig.arenaOrigin);
-
-        BlockPos nexus1 = GameConfig.getPlayer1NexusCenter();
-        BlockPos nexus2 = GameConfig.getPlayer2NexusCenter();
-        team1.getNexusManager().build(world, nexus1);
-        team2.getNexusManager().build(world, nexus2);
-
-        if (towerManager != null) towerManager.removeAll();
-        spawnerManager.removeAll();
-        spawnerManager.killAllMobs();
-        incomeGeneratorManager.removeAll();
-        mobUpgradeManager.reset();
-        towerUpgradeManager.reset();
-        tierManager.reset();
-        tierManager.initTeam(1);
-        tierManager.initTeam(2);
-
-        incomeGeneratorManager.setMoneyManagerLookup(this::getMoneyManagerForTeam);
-        incomeGeneratorManager.setIncomeMultiplierForAITeam(() ->
-                gameMode == GameMode.SOLO ? ConfigManager.getInstance().getSoloModeGeneratorMultiplier() : 1.0);
-        spawnerManager.setUpgradeManager(mobUpgradeManager);
-        if (towerManager != null) towerManager.setTowerUpgradeManager(towerUpgradeManager);
-
-        for (PlayerState ps : playerStates.values()) {
-            playerKit.setupPlayer(ps.getPlayer());
-            playerKit.giveStartingKit(ps.getPlayer());
-            ps.getTeam().getMoneyManager().reset();
-            BlockPos spawn = ps.getSide() == 1 ? GameConfig.getPlayer1SpawnPoint() : GameConfig.getPlayer2SpawnPoint();
-            ps.getPlayer().teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
-        }
-
-        hudManager.setup(world.getScoreboard());
-        nexusBossBarManager.removeAllPlayers();
-        for (PlayerState ps : playerStates.values()) {
-            nexusBossBarManager.addPlayer(ps.getPlayer(), ps.getSide());
-        }
-        state = GameState.PREP_PHASE;
-        tickCounter = GameConfig.PREP_PHASE_TICKS();
-        passiveIncomeTicker = GameConfig.BASE_PASSIVE_INTERVAL();
-        incomeDisplayTicker = 0;
-        waveEventTicker = ConfigManager.getInstance().getWaveEventIntervalTicks();
-        minimapTicker = 0;
-        restoreHealthTicker = 0;
-
-        for (PlayerState ps : playerStates.values()) {
-            HudManager.sendTitle(ps.getPlayer(),
-                    Component.literal(gameMode == GameMode.SOLO ? "SOLO MODE" : "PVP TOWER DEFENSE").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
-                    Component.literal(gameMode == GameMode.SOLO ? "You vs AI!" : "30s to prepare!").withStyle(ChatFormatting.YELLOW),
-                    10, 60, 20);
-            ps.getPlayer().sendSystemMessage(Component.literal("═══════════════════════════════").withStyle(ChatFormatting.GOLD));
-            ps.getPlayer().sendSystemMessage(Component.literal("  \u2694 " + (gameMode == GameMode.SOLO ? "Solo vs AI" : "Tower Defense PvP")).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-            ps.getPlayer().sendSystemMessage(Component.literal("  Defend your Nexus! Destroy the enemy!").withStyle(ChatFormatting.YELLOW));
-            ps.getPlayer().sendSystemMessage(Component.literal("  You are Team " + ps.getSide()).withStyle(ChatFormatting.AQUA));
-            ps.getPlayer().sendSystemMessage(Component.literal("  Prep phase: 30 seconds").withStyle(ChatFormatting.GRAY));
-            ps.getPlayer().sendSystemMessage(Component.literal("═══════════════════════════════").withStyle(ChatFormatting.GOLD));
-        }
-
-        if (gameMode == GameMode.SOLO) {
-            int startMoney = (int) (GameConfig.STARTING_MONEY() * ConfigManager.getInstance().getSoloModeStartingMultiplier());
-            team2.getMoneyManager().resetWithAmount(startMoney);
-            soloAI = new SoloAI(this);
-            spawnAIVillager();
-        }
-
-        if (gameMode == GameMode.TEST) {
-            team2.getMoneyManager().reset();
-        }
-
-        lobby = null;
-        TowerDefenseMod.LOGGER.info("Tower Defense prep phase started" + (gameMode == GameMode.SOLO ? " (solo mode)" : "") + (gameMode == GameMode.TEST ? " (test mode)" : ""));
-    }
-
-    private void spawnAIVillager() {
-        if (world == null || team2 == null) return;
-        BlockPos spawn = GameConfig.getPlayer2SpawnPoint();
-        aiVillagerEntity = new Villager(net.minecraft.world.entity.EntityType.VILLAGER, world);
-        aiVillagerEntity.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
-        aiVillagerEntity.setInvulnerable(true);
-        aiVillagerEntity.setCustomName(Component.literal("AI"));
-        aiVillagerEntity.setCustomNameVisible(true);
-        aiVillagerEntity.addTag("td_ai_villager");
-        world.addFreshEntity(aiVillagerEntity);
+        return lobbyManager.addPlayerToGame(player, team);
     }
 
     public void removePlayerFromGame(UUID uuid) {
@@ -316,7 +136,7 @@ public class GameManager implements StructureEventSink, IGameSession {
         if (team.getMemberCount() == 0 && state != GameState.LOBBY && gameMode != GameMode.TEST) {
             TeamState winner = team == team1 ? team2 : team1;
             TeamState loser = team;
-            triggerVictory(winner, loser);
+            gamePhaseManager.triggerVictory(winner, loser);
         }
     }
 
@@ -414,14 +234,9 @@ public class GameManager implements StructureEventSink, IGameSession {
             soloAI.tick(world);
         }
 
-        if (checkDisconnect()) return;
+        if (gamePhaseManager.checkDisconnect()) return;
 
-        switch (state) {
-            case PREP_PHASE -> tickPrepPhase();
-            case PLAYING -> tickPlaying();
-            case GAME_OVER -> tickGameOver();
-            default -> {}
-        }
+        gamePhaseManager.tick();
 
         spectatorManager.tick();
         if (world != null) spellManager.tick(world);
@@ -449,194 +264,12 @@ public class GameManager implements StructureEventSink, IGameSession {
         }
     }
 
-    private void tickPrepPhase() {
-        spawnerManager.tick(world, true);
-        incomeGeneratorManager.tick();
-        tierManager.tick(team1, team2);
-
-        tickCounter--;
-        if (tickCounter <= 0) {
-            state = GameState.PLAYING;
-            playingPhaseTicks = 0;
-            for (PlayerState ps : playerStates.values()) {
-                HudManager.sendTitle(ps.getPlayer(),
-                        Component.literal("FIGHT!").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-                        Component.literal("Spawners activated!").withStyle(ChatFormatting.GRAY),
-                        5, 40, 10);
-            }
-            world.playSound(null, GameConfig.getArenaCenter(), SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1.5f, 1.0f);
-        } else if (tickCounter % 20 == 0) {
-            int seconds = tickCounter / 20;
-            for (PlayerState ps : playerStates.values()) {
-                HudManager.sendActionBar(ps.getPlayer(),
-                        Component.literal("Game starts in " + seconds + "s...").withStyle(ChatFormatting.YELLOW));
-            }
-        }
-    }
-
-    private void tickPlaying() {
-        playingPhaseTicks++;
-        spawnerManager.tick(world, false);
-        incomeGeneratorManager.tick();
-        oreManager.tick(world, playingPhaseTicks);
-
-        team1.getNexusManager().tickShield();
-        team2.getNexusManager().tickShield();
-        checkMobsAtNexus(team1);
-        checkMobsAtNexus(team2);
-
-        if (team1.getNexusManager().isDead()) {
-            triggerVictory(team2, team1);
-            return;
-        }
-        if (team2.getNexusManager().isDead()) {
-            triggerVictory(team1, team2);
-            return;
-        }
-
-        tierManager.tick(team1, team2);
-
-        passiveIncomeTicker--;
-        if (passiveIncomeTicker <= 0) {
-            passiveIncomeTicker = GameConfig.BASE_PASSIVE_INTERVAL();
-            team1.getMoneyManager().addMoney(GameConfig.BASE_PASSIVE_INCOME());
-            int t2Income = GameConfig.BASE_PASSIVE_INCOME();
-            if (gameMode == GameMode.SOLO) {
-                t2Income = (int) (t2Income * ConfigManager.getInstance().getSoloModeIncomeMultiplier());
-            }
-            team2.getMoneyManager().addMoney(t2Income);
-        }
-
-        waveEventTicker--;
-        if (waveEventTicker <= 0) {
-            waveEventTicker = ConfigManager.getInstance().getWaveEventIntervalTicks();
-            triggerWaveEvent();
-        }
-    }
-
-    private void triggerWaveEvent() {
-        int event = eventRandom.nextInt(3);
-        switch (event) {
-            case 0 -> {
-                int bonus = ConfigManager.getInstance().getBonusMoney();
-                team1.getMoneyManager().addMoney(bonus);
-                team2.getMoneyManager().addMoney(bonus);
-                for (PlayerState ps : playerStates.values()) {
-                    HudManager.sendTitle(ps.getPlayer(),
-                            Component.literal("BONUS!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
-                            Component.literal("Free $50 for everyone!").withStyle(ChatFormatting.GRAY), 5, 40, 10);
-                }
-            }
-            case 1 -> {
-                int extra = GameConfig.BASE_PASSIVE_INCOME() * ConfigManager.getInstance().getDoubleIncomeMultiplier();
-                team1.getMoneyManager().addMoney(extra);
-                team2.getMoneyManager().addMoney(extra);
-                for (PlayerState ps : playerStates.values()) {
-                    HudManager.sendTitle(ps.getPlayer(),
-                            Component.literal("DOUBLE INCOME!").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
-                            Component.literal("Income boost for everyone!").withStyle(ChatFormatting.GRAY), 5, 40, 10);
-                }
-            }
-            case 2 -> {
-                for (Mob mob : spawnerManager.getAliveMobs()) {
-                    if (mob.isAlive()) {
-                        mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                                net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, ConfigManager.getInstance().getSpeedBoostDurationTicks(), 1));
-                    }
-                }
-                for (PlayerState ps : playerStates.values()) {
-                    HudManager.sendTitle(ps.getPlayer(),
-                            Component.literal("SPEED BOOST!").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD),
-                            Component.literal("All mobs move faster!").withStyle(ChatFormatting.GRAY), 5, 40, 10);
-                }
-            }
-        }
-    }
-
-    private void tickGameOver() {
-        tickCounter--;
-        if (tickCounter <= 0) {
-            stopGame();
-        }
-    }
-
-    // ─── Mob Nexus Check ───
-
-    private void checkMobsAtNexus(TeamState defender) {
-        NexusManager nexus = defender.getNexusManager();
-        if (nexus.getCenter() == null) return;
-        int defenderSide = defender.getSide();
-
-        for (Mob mob : spawnerManager.getAliveMobs()) {
-            if (!mob.isAlive()) continue;
-            int mobTeam = com.towerdefense.wave.MobTags.getTeamId(mob);
-            if (mobTeam < 0 || mobTeam == defenderSide) continue;
-            nexus.checkAndApplyMobImpact(world, mob, mobUpgradeManager);
-        }
-    }
-
-    // ─── Victory ───
-
-    private void triggerVictory(TeamState winner, TeamState loser) {
-        if (state == GameState.GAME_OVER) return;
-        state = GameState.GAME_OVER;
-        tickCounter = GameConfig.DEFEAT_DELAY_TICKS();
-
-        spawnerManager.killAllMobs();
-        loser.getNexusManager().destroy(world);
-
-        for (UUID uuid : winner.getMembers()) {
-            ServerPlayer p = world.getServer().getPlayerList().getPlayer(uuid);
-            if (p != null && p.isAlive()) {
-                HudManager.sendTitle(p,
-                        Component.literal("VICTORY!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
-                        Component.literal("Enemy Nexus destroyed!").withStyle(ChatFormatting.GRAY),
-                        5, 80, 20);
-                world.playSound(null, p.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.5f, 1.0f);
-            }
-        }
-        for (UUID uuid : loser.getMembers()) {
-            ServerPlayer p = world.getServer().getPlayerList().getPlayer(uuid);
-            if (p != null && p.isAlive()) {
-                HudManager.sendTitle(p,
-                        Component.literal("DEFEAT").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD),
-                        Component.literal("Your Nexus was destroyed!").withStyle(ChatFormatting.RED),
-                        5, 80, 20);
-                world.playSound(null, p.blockPosition(), SoundEvents.WITHER_DEATH, SoundSource.HOSTILE, 1.5f, 0.5f);
-            }
-        }
-    }
+    // tickPrepPhase / tickPlaying / tickGameOver / triggerWaveEvent / checkMobsAtNexus
+    // / triggerVictory / checkDisconnect / hasAnyAlivePlayer  →  GamePhaseManager
 
     // ─── Disconnect ───
 
-    private boolean checkDisconnect() {
-        if (team1 == null || team2 == null) return false;
-        if (gameMode == GameMode.TEST) return false;
-        boolean team1Gone = team1.getMemberCount() == 0 || !hasAnyAlivePlayer(team1);
-        boolean team2Gone = gameMode == GameMode.SOLO ? false : (team2.getMemberCount() == 0 || !hasAnyAlivePlayer(team2));
-
-        if (team1Gone && team2Gone) {
-            stopGame();
-            return true;
-        }
-        if (team1Gone) {
-            triggerVictory(team2, team1);
-            return true;
-        }
-        if (team2Gone) {
-            triggerVictory(team1, team2);
-            return true;
-        }
-        return false;
-    }
-
-    private boolean hasAnyAlivePlayer(TeamState team) {
-        for (UUID uuid : team.getMembers()) {
-            ServerPlayer p = world.getServer().getPlayerList().getPlayer(uuid);
-            if (p != null && !p.isRemoved() && p.isAlive()) return true;
-        }
-        return false;
-    }
+    // checkDisconnect / hasAnyAlivePlayer  →  GamePhaseManager
 
     public void onPlayerDisconnect(ServerPlayer player) {
         if (state == GameState.IDLE) return;
@@ -736,6 +369,22 @@ public class GameManager implements StructureEventSink, IGameSession {
             }
         }
 
+        List<int[]> spawners1 = new ArrayList<>();
+        List<int[]> spawners2 = new ArrayList<>();
+        for (var s : spawnerManager.getSpawners()) {
+            int rx = s.basePos().getX() - origin.getX();
+            int rz = s.basePos().getZ() - origin.getZ();
+            (s.teamId() == 1 ? spawners1 : spawners2).add(new int[]{rx, rz});
+        }
+
+        List<int[]> generators1 = new ArrayList<>();
+        List<int[]> generators2 = new ArrayList<>();
+        for (var g : incomeGeneratorManager.getGenerators()) {
+            int rx = g.basePos().getX() - origin.getX();
+            int rz = g.basePos().getZ() - origin.getZ();
+            (g.teamId() == 1 ? generators1 : generators2).add(new int[]{rx, rz});
+        }
+
         BlockPos n1 = GameConfig.getPlayer1NexusCenter();
         BlockPos n2 = GameConfig.getPlayer2NexusCenter();
         int[] nexus1 = {n1.getX() - origin.getX(), n1.getZ() - origin.getZ()};
@@ -754,8 +403,13 @@ public class GameManager implements StructureEventSink, IGameSession {
                     isTeam1 ? walls2 : walls1,
                     isTeam1 ? towers1 : towers2,
                     isTeam1 ? towers2 : towers1,
+                    isTeam1 ? spawners1 : spawners2,
+                    isTeam1 ? spawners2 : spawners1,
+                    isTeam1 ? generators1 : generators2,
+                    isTeam1 ? generators2 : generators1,
                     isTeam1 ? nexus1 : nexus2,
-                    isTeam1 ? nexus2 : nexus1
+                    isTeam1 ? nexus2 : nexus1,
+                    ps.getMoneyManager().getMoney()
             ));
         }
     }
@@ -809,7 +463,7 @@ public class GameManager implements StructureEventSink, IGameSession {
 
     // ─── Helpers ───
 
-    private void killAllNonPlayerEntities() {
+    void killAllNonPlayerEntities() {
         if (world == null) return;
         BlockPos origin = GameConfig.arenaOrigin;
         int size = GameConfig.ARENA_SIZE();
@@ -822,13 +476,13 @@ public class GameManager implements StructureEventSink, IGameSession {
         }
     }
 
-    private void sendAllPlayers(Component message) {
+    void sendAllPlayers(Component message) {
         for (PlayerState ps : playerStates.values()) {
             if (ps.getPlayer() != null) ps.getPlayer().sendSystemMessage(message);
         }
     }
 
-    private MoneyManager getMoneyManagerForTeam(int teamId) {
+    MoneyManager getMoneyManagerForTeam(int teamId) {
         TeamState t = teamId == 1 ? team1 : team2;
         return t != null ? t.getMoneyManager() : null;
     }
@@ -866,7 +520,7 @@ public class GameManager implements StructureEventSink, IGameSession {
      */
     public void forceStartPrep() {
         if (state != GameState.LOBBY) throw new IllegalStateException("Must be in LOBBY state to force prep");
-        transitionLobbyToPrep();
+        lobbyManager.transitionLobbyToPrep();
     }
 
     /** In test mode: if the player is in the wrong half, switch their team to match their position. */

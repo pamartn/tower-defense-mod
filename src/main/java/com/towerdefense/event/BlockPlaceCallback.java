@@ -4,23 +4,29 @@ import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Fired server-side after a player successfully places a block.
- * Fabric does not provide this event natively, so we fire it via Mixin.
+ * Fired server-side BEFORE a player's block-placement packet is processed by vanilla.
+ * Handlers return true to take full ownership of the interaction and cancel vanilla placement.
  */
 public interface BlockPlaceCallback {
 
     Event<BlockPlaceCallback> EVENT = EventFactory.createArrayBacked(
             BlockPlaceCallback.class,
-            listeners -> (player, world, pos, state) -> {
+            listeners -> (player, world, pos, heldItem) -> {
                 for (BlockPlaceCallback listener : listeners) {
-                    listener.onBlockPlaced(player, world, pos, state);
+                    if (listener.onBlockPlacing(player, world, pos, heldItem)) return true;
                 }
+                return false;
             }
     );
 
-    void onBlockPlaced(ServerPlayer player, Level world, BlockPos pos, BlockState state);
+    /**
+     * Called before vanilla processes the block placement.
+     *
+     * @return true to cancel vanilla placement and take full ownership of the interaction.
+     */
+    boolean onBlockPlacing(ServerPlayer player, Level world, BlockPos pos, ItemStack heldItem);
 }

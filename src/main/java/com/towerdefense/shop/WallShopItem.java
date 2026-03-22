@@ -42,6 +42,13 @@ public record WallShopItem(String name, Block block, int defaultPrice) implement
         return null;
     }
 
+    public static WallShopItem findByName(String name) {
+        for (WallShopItem w : ITEMS) {
+            if (w.name().equals(name)) return w;
+        }
+        return null;
+    }
+
     public static List<WallShopItem> getAll() {
         return ITEMS;
     }

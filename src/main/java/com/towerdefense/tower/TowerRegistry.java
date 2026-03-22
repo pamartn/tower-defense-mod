@@ -9,11 +9,13 @@ import java.util.*;
 public class TowerRegistry {
 
     private final Map<Block, TowerRecipe> blockToTower = new HashMap<>();
+    private final Map<TowerType, TowerRecipe> typeToTower = new HashMap<>();
     private final List<TowerRecipe> recipes = new ArrayList<>();
 
     public void registerDefaults() {
         var cfg = ConfigManager.getInstance();
         blockToTower.clear();
+        typeToTower.clear();
         recipes.clear();
         addRecipe(new TowerRecipe("Basic Tower", TowerType.BASIC, Blocks.DIRT,
                 cfg.getTowerPower(TowerType.BASIC), cfg.getTowerRange(TowerType.BASIC),
@@ -54,10 +56,15 @@ public class TowerRegistry {
     private void addRecipe(TowerRecipe recipe) {
         recipes.add(recipe);
         blockToTower.put(recipe.block(), recipe);
+        typeToTower.put(recipe.type(), recipe);
     }
 
     public Optional<TowerRecipe> findByBlock(Block block) {
         return Optional.ofNullable(blockToTower.get(block));
+    }
+
+    public Optional<TowerRecipe> findByType(TowerType type) {
+        return Optional.ofNullable(typeToTower.get(type));
     }
 
     public List<TowerRecipe> getRecipes() {

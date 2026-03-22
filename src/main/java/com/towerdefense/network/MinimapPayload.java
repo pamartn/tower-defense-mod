@@ -27,8 +27,13 @@ public record MinimapPayload(
         List<int[]> enemyWalls,
         List<int[]> ownTowers,
         List<int[]> enemyTowers,
+        List<int[]> ownSpawners,
+        List<int[]> enemySpawners,
+        List<int[]> ownGenerators,
+        List<int[]> enemyGenerators,
         int[] ownNexus,    // [x,z]
-        int[] enemyNexus   // [x,z]
+        int[] enemyNexus,  // [x,z]
+        int ownMoney
 ) implements CustomPacketPayload {
 
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TowerDefenseMod.MOD_ID, "minimap");
@@ -49,8 +54,13 @@ public record MinimapPayload(
         writeXZList(buf, p.enemyWalls);
         writeXZList(buf, p.ownTowers);
         writeXZList(buf, p.enemyTowers);
+        writeXZList(buf, p.ownSpawners);
+        writeXZList(buf, p.enemySpawners);
+        writeXZList(buf, p.ownGenerators);
+        writeXZList(buf, p.enemyGenerators);
         writeXZ(buf, p.ownNexus);
         writeXZ(buf, p.enemyNexus);
+        buf.writeInt(p.ownMoney);
     }
 
     public static MinimapPayload read(FriendlyByteBuf buf) {
@@ -59,8 +69,11 @@ public record MinimapPayload(
         List<List<int[]>> op = readPathList(buf), ep = readPathList(buf);
         List<int[]> ow = readXZList(buf), ew = readXZList(buf);
         List<int[]> ot = readXZList(buf), et = readXZList(buf);
+        List<int[]> osp = readXZList(buf), esp = readXZList(buf);
+        List<int[]> og = readXZList(buf), eg = readXZList(buf);
         int[] on = readXZ(buf), en = readXZ(buf);
-        return new MinimapPayload(ox, oz, size, team, om, em, op, ep, ow, ew, ot, et, on, en);
+        int money = buf.readInt();
+        return new MinimapPayload(ox, oz, size, team, om, em, op, ep, ow, ew, ot, et, osp, esp, og, eg, on, en, money);
     }
 
     private static void writeXZ(FriendlyByteBuf buf, int[] pos) {

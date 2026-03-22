@@ -46,6 +46,18 @@ public class TowerManager {
     private StructureEventSink gameManager;
 
     private record PendingCannonImpact(ServerLevel world, Vec3 pos, int power, int fireTicks, int ticksLeft, int teamId) {}
+
+    /** Bundles the three values that every shoot* method computes at the top. */
+    private record AttackCtx(int power, Vec3 origin, Vec3 targetPos) {}
+
+    private AttackCtx ctx(ArmorStand marker, LivingEntity target, ActiveTower tower) {
+        return new AttackCtx(
+            getEffectivePower(tower),
+            marker.position().add(0, TowerConstants.ATTACK_ORIGIN_Y, 0),
+            target.position().add(0, target.getBbHeight() * TowerConstants.TARGET_CENTER_FRACTION, 0)
+        );
+    }
+
     private com.towerdefense.tower.TowerUpgradeManager towerUpgradeManager;
 
     public void setGameManager(StructureEventSink gameManager) {
@@ -272,18 +284,34 @@ public class TowerManager {
         return closest;
     }
 
+    /**
+     * Shifts the arrow spawn origin slightly upward and horizontally toward
+     * the target so close-range shots don't self-hit the tower structure.
+     */
+    private Vec3 arrowOrigin(Vec3 origin, Vec3 target) {
+        double dx = target.x - origin.x;
+        double dz = target.z - origin.z;
+        double horizLen = Math.sqrt(dx * dx + dz * dz);
+        if (horizLen < 0.001) return origin.add(0, TowerConstants.ARROW_ORIGIN_Y_DELTA, 0);
+        double nx = dx / horizLen;
+        double nz = dz / horizLen;
+        return origin.add(
+                nx * TowerConstants.ARROW_ORIGIN_SHIFT,
+                TowerConstants.ARROW_ORIGIN_Y_DELTA,
+                nz * TowerConstants.ARROW_ORIGIN_SHIFT);
+    }
+
     // ─── Attack: Basic (1 arrow) ───
 
     private void shootArrow(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
-        int power = getEffectivePower(tower);
-        Vec3 origin = marker.position().add(0, 0.5, 0);
-        Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
-        Vec3 direction = targetPos.subtract(origin).normalize().scale(2.0);
+        AttackCtx ctx = ctx(marker, target, tower);
+        Vec3 origin = arrowOrigin(ctx.origin(), ctx.targetPos());
+        Vec3 direction = ctx.targetPos().subtract(origin).normalize().scale(TowerConstants.ARROW_SPEED);
 
         Arrow arrow = new Arrow(EntityType.ARROW, world);
         arrow.setPos(origin.x, origin.y, origin.z);
         arrow.setDeltaMovement(direction);
-        arrow.setBaseDamage(power);
+        arrow.setBaseDamage(ctx.power());
         arrow.setOwner(marker);
         world.addFreshEntity(arrow);
 
@@ -294,22 +322,21 @@ public class TowerManager {
     // ─── Attack: Archer (2 arrows with spread) ───
 
     private void shootDoubleArrow(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
-        int power = getEffectivePower(tower);
-        Vec3 origin = marker.position().add(0, 0.5, 0);
-        Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
-        Vec3 direction = targetPos.subtract(origin).normalize();
+        AttackCtx ctx = ctx(marker, target, tower);
+        Vec3 origin = arrowOrigin(ctx.origin(), ctx.targetPos());
+        Vec3 direction = ctx.targetPos().subtract(origin).normalize();
 
         Vec3 perpendicular = new Vec3(-direction.z, 0, direction.x).normalize();
-        double spread = 0.3;
 
         for (int i = -1; i <= 1; i += 2) {
-            Vec3 offset = perpendicular.scale(spread * i);
-            Vec3 arrowDir = direction.add(offset.scale(0.15)).normalize().scale(2.5);
+            Vec3 offset = perpendicular.scale(TowerConstants.DOUBLE_ARROW_SPREAD * i);
+            Vec3 arrowDir = direction.add(offset.scale(TowerConstants.DOUBLE_ARROW_OFFSET_SCALE))
+                                     .normalize().scale(TowerConstants.DOUBLE_ARROW_SPEED);
 
             Arrow arrow = new Arrow(EntityType.ARROW, world);
             arrow.setPos(origin.x + offset.x, origin.y, origin.z + offset.z);
             arrow.setDeltaMovement(arrowDir);
-            arrow.setBaseDamage(power);
+            arrow.setBaseDamage(ctx.power());
             arrow.setOwner(marker);
             world.addFreshEntity(arrow);
         }
@@ -355,35 +382,30 @@ public class TowerManager {
     }
 
     private void shootCannonball(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
-        int power = getEffectivePower(tower);
+        AttackCtx ctx = ctx(marker, target, tower);
         int fireTicks = getEffectiveEffectDuration(tower, ConfigManager.getInstance().getFireTicks());
-        Vec3 origin = marker.position().add(0, 0.5, 0);
-        Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
 
-        pendingCannonImpacts.add(new PendingCannonImpact(world, targetPos, power, fireTicks, CANNON_IMPACT_DELAY_TICKS, tower.teamId()));
+        pendingCannonImpacts.add(new PendingCannonImpact(world, ctx.targetPos(), ctx.power(), fireTicks, CANNON_IMPACT_DELAY_TICKS, tower.teamId()));
 
-        world.sendParticles(ParticleTypes.LARGE_SMOKE, origin.x, origin.y, origin.z, 10, 0.3, 0.3, 0.3, 0.02);
+        world.sendParticles(ParticleTypes.LARGE_SMOKE, ctx.origin().x, ctx.origin().y, ctx.origin().z, 10, 0.3, 0.3, 0.3, 0.02);
         world.playSound(null, marker.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 0.8f, 0.9f);
     }
 
     // ─── Attack: Laser (particle beam + direct damage) ───
 
     private void shootLaser(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
-        int power = getEffectivePower(tower);
-        Vec3 origin = marker.position().add(0, 0.5, 0);
-        Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
+        AttackCtx ctx = ctx(marker, target, tower);
 
-        int particles = 30;
-        for (int i = 0; i <= particles; i++) {
-            double t = (double) i / particles;
-            double px = origin.x + (targetPos.x - origin.x) * t;
-            double py = origin.y + (targetPos.y - origin.y) * t;
-            double pz = origin.z + (targetPos.z - origin.z) * t;
+        for (int i = 0; i <= TowerConstants.LASER_PARTICLE_COUNT; i++) {
+            double t = (double) i / TowerConstants.LASER_PARTICLE_COUNT;
+            double px = ctx.origin().x + (ctx.targetPos().x - ctx.origin().x) * t;
+            double py = ctx.origin().y + (ctx.targetPos().y - ctx.origin().y) * t;
+            double pz = ctx.origin().z + (ctx.targetPos().z - ctx.origin().z) * t;
             world.sendParticles(ParticleTypes.END_ROD, px, py, pz, 1, 0, 0, 0, 0);
         }
-        world.sendParticles(ParticleTypes.ELECTRIC_SPARK, targetPos.x, targetPos.y, targetPos.z, 15, 0.3, 0.3, 0.3, 0.1);
+        world.sendParticles(ParticleTypes.ELECTRIC_SPARK, ctx.targetPos().x, ctx.targetPos().y, ctx.targetPos().z, 15, 0.3, 0.3, 0.3, 0.1);
 
-        target.hurt(world.damageSources().magic(), power);
+        target.hurt(world.damageSources().magic(), ctx.power());
 
         world.playSound(null, marker.blockPosition(), SoundEvents.GUARDIAN_ATTACK, SoundSource.HOSTILE, 1.5f, 1.8f);
     }
@@ -393,7 +415,7 @@ public class TowerManager {
     private void shootFire(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
         int power = getEffectivePower(tower);
         int fireTicks = getEffectiveEffectDuration(tower, ConfigManager.getInstance().getFireTicks());
-        Vec3 origin = marker.position().add(0, 0.5, 0);
+        Vec3 origin = marker.position().add(0, TowerConstants.ATTACK_ORIGIN_Y, 0);
 
         target.setRemainingFireTicks(fireTicks);
         if (power > 0) {
@@ -410,7 +432,7 @@ public class TowerManager {
     private void shootSlow(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
         int duration = getEffectiveEffectDuration(tower, ConfigManager.getInstance().getSlowDurationTicks());
         int amplifier = ConfigManager.getInstance().getSlowAmplifier();
-        Vec3 origin = marker.position().add(0, 0.5, 0);
+        Vec3 origin = marker.position().add(0, TowerConstants.ATTACK_ORIGIN_Y, 0);
 
         target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, amplifier));
 
@@ -432,19 +454,16 @@ public class TowerManager {
     // ─── Attack: Sniper ───
 
     private void shootSniper(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
-        int power = getEffectivePower(tower);
-        Vec3 origin = marker.position().add(0, 0.5, 0);
-        Vec3 targetPos = target.position().add(0, target.getBbHeight() * 0.5, 0);
+        AttackCtx ctx = ctx(marker, target, tower);
 
-        int particles = 40;
-        for (int i = 0; i <= particles; i++) {
-            double t = (double) i / particles;
+        for (int i = 0; i <= TowerConstants.SNIPER_PARTICLE_COUNT; i++) {
+            double t = (double) i / TowerConstants.SNIPER_PARTICLE_COUNT;
             world.sendParticles(ParticleTypes.CRIT,
-                    origin.x + (targetPos.x - origin.x) * t,
-                    origin.y + (targetPos.y - origin.y) * t,
-                    origin.z + (targetPos.z - origin.z) * t, 1, 0, 0, 0, 0);
+                    ctx.origin().x + (ctx.targetPos().x - ctx.origin().x) * t,
+                    ctx.origin().y + (ctx.targetPos().y - ctx.origin().y) * t,
+                    ctx.origin().z + (ctx.targetPos().z - ctx.origin().z) * t, 1, 0, 0, 0, 0);
         }
-        target.hurt(world.damageSources().magic(), power);
+        target.hurt(world.damageSources().magic(), ctx.power());
         world.playSound(null, marker.blockPosition(), SoundEvents.CROSSBOW_SHOOT, SoundSource.BLOCKS, 1.5f, 0.5f);
     }
 

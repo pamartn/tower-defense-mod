@@ -11,7 +11,7 @@ public enum SpellType implements Purchasable {
 
     FIREBALL("Fireball", 200, Items.FIRE_CHARGE, "Destroys enemy buildings"),
     FREEZE_BOMB("Freeze Bomb", 150, Items.SNOWBALL, "Freeze enemy mobs 5s"),
-    HEAL_NEXUS("Heal Nexus", 250, Items.GOLDEN_APPLE, "Restore 15 nexus HP"),
+    HEAL_NEXUS("Heal Nexus", 150, Items.GOLDEN_APPLE, "Restore 15 nexus HP"),
     LIGHTNING("Lightning", 100, Items.TRIDENT, "Kill mobs in area"),
     SHIELD("Shield", 300, Items.SHIELD, "Nexus immune 10s");
 
@@ -37,7 +37,8 @@ public enum SpellType implements Purchasable {
         return switch (this) {
             case LIGHTNING -> 1;
             case FREEZE_BOMB, FIREBALL -> 2;
-            case HEAL_NEXUS, SHIELD -> 3;
+            case HEAL_NEXUS -> 2;
+            case SHIELD -> 3;
         };
     }
 
