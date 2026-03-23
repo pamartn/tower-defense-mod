@@ -125,7 +125,7 @@ public class ShopScreenHandler extends AbstractContainerMenu {
         net.minecraft.world.item.Item baseItem = switch (type) {
             case ZOMBIE_SPAWNER      -> net.minecraft.world.item.Items.ROTTEN_FLESH;
             case SKELETON_SPAWNER    -> net.minecraft.world.item.Items.BONE;
-            case SPIDER_SPAWNER      -> net.minecraft.world.item.Items.STRING;
+            case SPIDER_SPAWNER      -> net.minecraft.world.item.Items.SPIDER_EYE;
             case RAVAGER_SPAWNER     -> net.minecraft.world.item.Items.SADDLE;
             case BABY_ZOMBIE_SPAWNER -> net.minecraft.world.item.Items.LEATHER;
             case CREEPER_SPAWNER     -> net.minecraft.world.item.Items.GREEN_DYE;

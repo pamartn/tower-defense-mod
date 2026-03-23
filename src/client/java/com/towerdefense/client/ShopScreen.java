@@ -317,19 +317,19 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         // shopButtons has 2 per row (Add + Pick). Tier check only for blocks.
         int idx = 0;
         for (TowerRecipe r : TowerDefenseMod.getInstance().getTowerRegistry().getRecipesSortedByPrice()) {
-            setPair(idx, r.type().getTier() <= tier);
+            setPair(idx, r.type().getTier() <= tier, r.type().getTier());
             idx += 2;
         }
         for (WallShopItem w : WallShopItem.getAllSortedByPrice()) {
-            setPair(idx, w.getTier() <= tier);
+            setPair(idx, w.getTier() <= tier, w.getTier());
             idx += 2;
         }
         for (SpawnerType s : SpawnerType.getAllSortedByPrice()) {
-            setPair(idx, s.getTier() <= tier);
+            setPair(idx, s.getTier() <= tier, s.getTier());
             idx += 2;
         }
         for (IncomeGeneratorType g : IncomeGeneratorType.getAllSortedByPrice()) {
-            setPair(idx, g.getTier() <= tier);
+            setPair(idx, g.getTier() <= tier, g.getTier());
             idx += 2;
         }
 
@@ -390,9 +390,17 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
         }
     }
 
-    private void setPair(int startIdx, boolean active) {
-        if (startIdx < shopButtons.size()) shopButtons.get(startIdx).active = active;
-        if (startIdx + 1 < shopButtons.size()) shopButtons.get(startIdx + 1).active = active;
+    private void setPair(int startIdx, boolean active, int requiredTier) {
+        String addLabel = active ? "Add" : "T" + requiredTier;
+        String pickLabel = active ? "Pick" : "T" + requiredTier;
+        if (startIdx < shopButtons.size()) {
+            shopButtons.get(startIdx).active = active;
+            shopButtons.get(startIdx).setMessage(Component.literal(addLabel));
+        }
+        if (startIdx + 1 < shopButtons.size()) {
+            shopButtons.get(startIdx + 1).active = active;
+            shopButtons.get(startIdx + 1).setMessage(Component.literal(pickLabel));
+        }
     }
 
     // ─── Buy actions ───
