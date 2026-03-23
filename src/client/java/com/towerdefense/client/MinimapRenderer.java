@@ -18,13 +18,14 @@ public class MinimapRenderer {
     private static final int BORDER     = 1;
 
     // Dot sizes (px)
-    private static final int MOB_DOT       = 4;
-    private static final int PATH_DOT      = 2;
-    private static final int WALL_DOT      = 3;
-    private static final int TOWER_DOT     = 5;
-    private static final int SPAWNER_DOT   = 5;
-    private static final int GENERATOR_DOT = 5;
-    private static final int NEXUS_DOT     = 9;
+    private static final int MOB_DOT        = 4;
+    private static final int PATH_DOT       = 2;
+    private static final int WALL_DOT       = 3;
+    private static final int TOWER_DOT      = 5;
+    private static final int SPAWNER_DOT    = 5;
+    private static final int GENERATOR_DOT  = 5;
+    private static final int NEXUS_DOT      = 9;
+    private static final int EXTRA_BLOCK_DOT = 3;
 
     // Colors
     private static final int COL_BG              = 0x88111111;
@@ -42,8 +43,10 @@ public class MinimapRenderer {
     private static final int COL_ENEMY_SPAWNER   = 0xFFFF44CC;
     private static final int COL_OWN_GENERATOR   = 0xFFFFDD00;
     private static final int COL_ENEMY_GENERATOR = 0xFFFF9900;
-    private static final int COL_OWN_NEXUS       = 0xFF00FFAA;
-    private static final int COL_ENEMY_NEXUS     = 0xFFFF0055;
+    private static final int COL_OWN_NEXUS        = 0xFF00FFAA;
+    private static final int COL_ENEMY_NEXUS      = 0xFFFF0055;
+    private static final int COL_OWN_EXTRA        = 0xFFCCCCCC;
+    private static final int COL_ENEMY_EXTRA      = 0xFF999999;
 
     private static volatile MinimapPayload last = null;
 
@@ -73,7 +76,10 @@ public class MinimapRenderer {
 
         int size = d.arenaSize();
 
-        // Structures
+        // Structures — extra (untracked) blocks first so mod structures render on top
+        drawXZList(g, d.ownExtraBlocks(),   size, mapX, mapY, EXTRA_BLOCK_DOT, COL_OWN_EXTRA);
+        drawXZList(g, d.enemyExtraBlocks(), size, mapX, mapY, EXTRA_BLOCK_DOT, COL_ENEMY_EXTRA);
+
         drawXZList(g, d.ownWalls(),       size, mapX, mapY, WALL_DOT,      COL_OWN_WALL);
         drawXZList(g, d.enemyWalls(),     size, mapX, mapY, WALL_DOT,      COL_ENEMY_WALL);
         drawXZList(g, d.ownTowers(),      size, mapX, mapY, TOWER_DOT,     COL_OWN_TOWER);

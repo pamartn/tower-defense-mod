@@ -390,6 +390,12 @@ public class GameManager implements StructureEventSink, IGameSession {
         int[] nexus1 = {n1.getX() - origin.getX(), n1.getZ() - origin.getZ()};
         int[] nexus2 = {n2.getX() - origin.getX(), n2.getZ() - origin.getZ()};
 
+        // Scan arena for solid blocks not tracked by any mod structure
+        List<int[]>[] extraBlocks = scanExtraBlocks(origin, size, walls1, walls2,
+                towers1, towers2, spawners1, spawners2, generators1, generators2, nexus1, nexus2);
+        List<int[]> extraBlocks1 = extraBlocks[0];
+        List<int[]> extraBlocks2 = extraBlocks[1];
+
         for (PlayerState ps : playerStates.values()) {
             int side = ps.getSide();
             boolean isTeam1 = side == 1;
@@ -407,11 +413,66 @@ public class GameManager implements StructureEventSink, IGameSession {
                     isTeam1 ? spawners2 : spawners1,
                     isTeam1 ? generators1 : generators2,
                     isTeam1 ? generators2 : generators1,
+                    isTeam1 ? extraBlocks1 : extraBlocks2,
+                    isTeam1 ? extraBlocks2 : extraBlocks1,
                     isTeam1 ? nexus1 : nexus2,
                     isTeam1 ? nexus2 : nexus1,
                     ps.getMoneyManager().getMoney()
             ));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<int[]>[] scanExtraBlocks(
+            BlockPos origin, int size,
+            List<int[]> walls1, List<int[]> walls2,
+            List<int[]> towers1, List<int[]> towers2,
+            List<int[]> spawners1, List<int[]> spawners2,
+            List<int[]> generators1, List<int[]> generators2,
+            int[] nexus1, int[] nexus2) {
+
+        // Build a set of (x,z) positions already represented by a tracked structure
+        Set<Long> tracked = new HashSet<>();
+        for (List<int[]> list : List.of(walls1, walls2, towers1, towers2,
+                                        spawners1, spawners2, generators1, generators2)) {
+            for (int[] xz : list) tracked.add(xzKey(xz[0], xz[1]));
+        }
+        // Also exclude a 3×3 area around each nexus
+        for (int[] n : new int[][]{nexus1, nexus2}) {
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dz = -1; dz <= 1; dz++)
+                    tracked.add(xzKey(n[0] + dx, n[1] + dz));
+        }
+
+        int midlineZ = GameConfig.getMidlineZ();
+        List<int[]> extra1 = new ArrayList<>();
+        List<int[]> extra2 = new ArrayList<>();
+
+        for (int x = 0; x < size; x++) {
+            for (int z = 0; z < size; z++) {
+                if (tracked.contains(xzKey(x, z))) continue;
+
+                BlockPos p1 = origin.offset(x, 1, z);
+                net.minecraft.world.level.block.state.BlockState s1 = world.getBlockState(p1);
+                boolean solid = !s1.isAir() &&
+                        s1.getCollisionShape(world, p1) != net.minecraft.world.phys.shapes.Shapes.empty();
+
+                if (!solid) {
+                    BlockPos p2 = origin.offset(x, 2, z);
+                    net.minecraft.world.level.block.state.BlockState s2 = world.getBlockState(p2);
+                    solid = !s2.isAir() &&
+                            s2.getCollisionShape(world, p2) != net.minecraft.world.phys.shapes.Shapes.empty();
+                }
+
+                if (solid) (z < midlineZ ? extra1 : extra2).add(new int[]{x, z});
+            }
+        }
+
+        return new List[]{extra1, extra2};
+    }
+
+    private static long xzKey(int x, int z) {
+        return ((long) x << 32) | (z & 0xFFFFFFFFL);
     }
 
     private List<int[]> extractPath(Mob mob, BlockPos origin) {

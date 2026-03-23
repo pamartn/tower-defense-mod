@@ -7,12 +7,12 @@ public final class ArenaConstants {
     // ── Stand / ring geometry ────────────────────────────────────────────────
     public static final int INNER_WALL_HEIGHT = 5;
     public static final int STAND_ROWS        = 10;
-    public static final int RING_BASE_OFFSET  = 2;   // ringOffset = RING_BASE_OFFSET + STAND_ROWS
+    public static final int RING_BASE_OFFSET  = 1;   // ringOffset = RING_BASE_OFFSET + STAND_ROWS
 
     /** Top of the bleachers / base of the parapet (= INNER_WALL_HEIGHT + 1 + STAND_ROWS). */
     public static final int STAND_TOP_Y       = INNER_WALL_HEIGHT + 1 + STAND_ROWS;          // 16
     /** Outward offset of the top ring and velarium poles (= RING_BASE_OFFSET + STAND_ROWS). */
-    public static final int STAND_RING_OFFSET = RING_BASE_OFFSET + STAND_ROWS;               // 12
+    public static final int STAND_RING_OFFSET = RING_BASE_OFFSET + STAND_ROWS;               // 11
 
     // ── Inner wall ───────────────────────────────────────────────────────────
     public static final int ARCH_SPACING    = 8;

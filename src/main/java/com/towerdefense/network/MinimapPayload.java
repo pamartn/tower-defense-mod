@@ -31,6 +31,9 @@ public record MinimapPayload(
         List<int[]> enemySpawners,
         List<int[]> ownGenerators,
         List<int[]> enemyGenerators,
+        // Untracked player-placed blocks (any solid block not part of a mod structure)
+        List<int[]> ownExtraBlocks,
+        List<int[]> enemyExtraBlocks,
         int[] ownNexus,    // [x,z]
         int[] enemyNexus,  // [x,z]
         int ownMoney
@@ -58,6 +61,8 @@ public record MinimapPayload(
         writeXZList(buf, p.enemySpawners);
         writeXZList(buf, p.ownGenerators);
         writeXZList(buf, p.enemyGenerators);
+        writeXZList(buf, p.ownExtraBlocks);
+        writeXZList(buf, p.enemyExtraBlocks);
         writeXZ(buf, p.ownNexus);
         writeXZ(buf, p.enemyNexus);
         buf.writeInt(p.ownMoney);
@@ -71,9 +76,10 @@ public record MinimapPayload(
         List<int[]> ot = readXZList(buf), et = readXZList(buf);
         List<int[]> osp = readXZList(buf), esp = readXZList(buf);
         List<int[]> og = readXZList(buf), eg = readXZList(buf);
+        List<int[]> oex = readXZList(buf), eex = readXZList(buf);
         int[] on = readXZ(buf), en = readXZ(buf);
         int money = buf.readInt();
-        return new MinimapPayload(ox, oz, size, team, om, em, op, ep, ow, ew, ot, et, osp, esp, og, eg, on, en, money);
+        return new MinimapPayload(ox, oz, size, team, om, em, op, ep, ow, ew, ot, et, osp, esp, og, eg, oex, eex, on, en, money);
     }
 
     private static void writeXZ(FriendlyByteBuf buf, int[] pos) {

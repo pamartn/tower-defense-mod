@@ -5,6 +5,7 @@ import com.towerdefense.config.ConfigManager;
 import com.towerdefense.shop.WallShopItem;
 import com.towerdefense.game.GameManager;
 import com.towerdefense.handler.TowerPlaceHandler;
+import com.towerdefense.network.ConfigSyncPayload;
 import com.towerdefense.network.ShopNetworking;
 import com.towerdefense.shop.ShopScreenHandler;
 import com.towerdefense.tower.TowerManager;
@@ -123,6 +124,9 @@ public class TowerDefenseMod implements ModInitializer {
                 gameManager.onMobKilled(mob);
             }
         });
+
+        ServerPlayConnectionEvents.JOIN.register((netHandler, sender, server) ->
+                sender.sendPacket(new ConfigSyncPayload(ConfigManager.getInstance().getConfig())));
 
         ServerPlayConnectionEvents.DISCONNECT.register((netHandler, server) -> {
             ServerPlayer player = netHandler.getPlayer();
