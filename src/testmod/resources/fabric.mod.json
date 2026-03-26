@@ -9,7 +9,9 @@
     "fabric-gametest": [
       "com.towerdefense.test.NexusDamageTests",
       "com.towerdefense.test.GameManagerTests",
-      "com.towerdefense.test.WitchHealTests"
+      "com.towerdefense.test.WitchHealTests",
+      "com.towerdefense.test.ArcherTowerTests",
+      "com.towerdefense.test.MobMovementTests"
     ]
   },
   "depends": {

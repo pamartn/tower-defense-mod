@@ -152,7 +152,6 @@ public class TowerPlaceHandler {
                     Component.literal("\u2714 " + recipe.name() + " placed!").withStyle(ChatFormatting.GREEN));
 
             String typeLabel = switch (recipe.type()) {
-                case BASIC          -> "Arrow";
                 case ARCHER         -> "Double Arrow";
                 case CANNON         -> "Explosive Cannonball";
                 case LASER          -> "Laser Beam";
@@ -162,6 +161,7 @@ public class TowerPlaceHandler {
                 case SNIPER         -> "Sniper Shot";
                 case CHAIN_LIGHTNING -> "Chain Lightning";
                 case AOE            -> "Area Explosion";
+                case SHOTGUN        -> "Triple Arrow";
             };
 
             player.sendSystemMessage(

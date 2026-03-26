@@ -45,8 +45,10 @@ public class PlayerKit {
     }
 
     public static ItemStack createTowerItem(TowerRecipe recipe) {
+        // IMPORTANT: never use a BlockItem here. BlockItems trigger client-side placement
+        // prediction before the server mixin can cancel the packet, causing the block to
+        // briefly appear in the world. Use regular items only (no Blocks.X.asItem()).
         net.minecraft.world.item.Item baseItem = switch (recipe.type()) {
-            case BASIC          -> Items.STICK;
             case ARCHER         -> Items.ARROW;
             case CANNON         -> Items.GUNPOWDER;
             case LASER          -> Items.NETHER_STAR;
@@ -56,11 +58,11 @@ public class PlayerKit {
             case SNIPER         -> Items.FEATHER;
             case CHAIN_LIGHTNING -> Items.COPPER_INGOT;
             case AOE            -> Items.FIREWORK_STAR;
+            case SHOTGUN        -> Items.CROSSBOW;
         };
         ItemStack stack = new ItemStack(baseItem, 1);
 
         ChatFormatting color = switch (recipe.type()) {
-            case BASIC -> ChatFormatting.WHITE;
             case ARCHER -> ChatFormatting.GREEN;
             case CANNON -> ChatFormatting.RED;
             case LASER -> ChatFormatting.AQUA;
@@ -70,6 +72,7 @@ public class PlayerKit {
             case SNIPER -> ChatFormatting.GRAY;
             case CHAIN_LIGHTNING -> ChatFormatting.YELLOW;
             case AOE -> ChatFormatting.DARK_RED;
+            case SHOTGUN -> ChatFormatting.WHITE;
         };
 
         stack.set(DataComponents.CUSTOM_NAME,

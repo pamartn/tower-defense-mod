@@ -34,4 +34,6 @@ public final class TowerConstants {
     public static final double DOUBLE_ARROW_SPREAD     = 0.3;
     /** Scale factor applied to the perpendicular offset when adjusting arrow direction. */
     public static final double DOUBLE_ARROW_OFFSET_SCALE = 0.15;
+    /** Perpendicular spread distance between the outer shotgun arrows. */
+    public static final double SHOTGUN_SPREAD           = 0.5;
 }

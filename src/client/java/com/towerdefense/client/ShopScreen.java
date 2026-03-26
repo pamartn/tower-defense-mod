@@ -249,10 +249,10 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
 
     private List<Component> towerTooltip(TowerType t) {
         return switch (t) {
-            case BASIC -> List.of(
-                    Component.literal("Basic Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
-                    Component.literal("Shoots nearby mobs.").withStyle(net.minecraft.ChatFormatting.GRAY),
-                    Component.literal("No special effect.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)
+            case SHOTGUN -> List.of(
+                    Component.literal("Shotgun Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
+                    Component.literal("Fires 3 arrows in a spread.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Good crowd coverage.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)
             );
             case ARCHER -> List.of(
                     Component.literal("Archer Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
@@ -276,7 +276,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopScreenHandler> {
             );
             case SLOW -> List.of(
                     Component.literal("Slow Tower").withStyle(net.minecraft.ChatFormatting.YELLOW),
-                    Component.literal("Applies Slowness to mobs on hit.").withStyle(net.minecraft.ChatFormatting.GRAY),
+                    Component.literal("Slows 2 mobs at once (+1 per upgrade).").withStyle(net.minecraft.ChatFormatting.GRAY),
                     Component.literal("Deals no direct damage.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)
             );
             case POISON -> List.of(

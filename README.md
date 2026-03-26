@@ -95,7 +95,7 @@ Place the block on your half to build. Towers auto-target enemy mobs.
 
 | Tower | Block | Attack | Tier |
 |-------|-------|--------|------|
-| Basic Tower | Dirt | Arrow | 1 |
+| Shotgun Tower | Gravel | Triple Arrow | 1 |
 | Archer Tower | Oak Log | Double Arrow | 1 |
 | Cannon Tower | Stone | Explosive Cannonball | 1 |
 | Fire Tower | Netherrack | Fire | 1 |

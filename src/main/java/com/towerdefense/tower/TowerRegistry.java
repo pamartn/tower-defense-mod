@@ -17,9 +17,9 @@ public class TowerRegistry {
         blockToTower.clear();
         typeToTower.clear();
         recipes.clear();
-        addRecipe(new TowerRecipe("Basic Tower", TowerType.BASIC, Blocks.DIRT,
-                cfg.getTowerPower(TowerType.BASIC), cfg.getTowerRange(TowerType.BASIC),
-                cfg.getTowerFireRate(TowerType.BASIC), cfg.getTowerPrice(TowerType.BASIC)));
+        addRecipe(new TowerRecipe("Shotgun Tower", TowerType.SHOTGUN, Blocks.GRAVEL,
+                cfg.getTowerPower(TowerType.SHOTGUN), cfg.getTowerRange(TowerType.SHOTGUN),
+                cfg.getTowerFireRate(TowerType.SHOTGUN), cfg.getTowerPrice(TowerType.SHOTGUN)));
         addRecipe(new TowerRecipe("Archer Tower", TowerType.ARCHER, Blocks.OAK_LOG,
                 cfg.getTowerPower(TowerType.ARCHER), cfg.getTowerRange(TowerType.ARCHER),
                 cfg.getTowerFireRate(TowerType.ARCHER), cfg.getTowerPrice(TowerType.ARCHER)));

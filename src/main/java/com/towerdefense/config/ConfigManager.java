@@ -123,7 +123,7 @@ public class ConfigManager {
             c.spawners.put(s.name(), sec);
         }
         // Towers (from TowerRegistry defaults)
-        c.towers.put("BASIC", tower(1, 8, 40, 10));
+        c.towers.put("SHOTGUN", tower(4, 10, 45, 40));
         c.towers.put("ARCHER", tower(2, 12, 35, 25));
         c.towers.put("CANNON", tower(8, 16, 60, 50));
         c.towers.put("LASER", tower(6, 20, 25, 100));
@@ -195,6 +195,8 @@ public class ConfigManager {
         for (WallShopItem w : WallShopItem.getAll()) {
             c.walls.putIfAbsent(w.name(), w.defaultPrice());
         }
+        // Backfill new towers missing from older config files
+        c.towers.putIfAbsent("SHOTGUN", tower(4, 10, 45, 40));
         // Backfill tier defaults for entries that existed before the tier field was added
         for (SpawnerType s : SpawnerType.values()) {
             TDConfig.SpawnerSection sec = c.spawners.get(s.name());
@@ -234,11 +236,6 @@ public class ConfigManager {
         if (c.spawners != null) {
             TDConfig.SpawnerSection bz = c.spawners.get("BABY_ZOMBIE_SPAWNER");
             if (bz != null && bz.tier == 1) bz.tier = 2;
-        }
-        // v1.5.0: basic tower damage reduced 2 -> 1
-        if (c.towers != null) {
-            TDConfig.TowerSection basic = c.towers.get("BASIC");
-            if (basic != null && basic.power == 2) basic.power = 1;
         }
         // v1.6.0: starting money adjusted to 200
         if (c.game != null && (c.game.startingMoney == 500 || c.game.startingMoney == 100)) c.game.startingMoney = 200;

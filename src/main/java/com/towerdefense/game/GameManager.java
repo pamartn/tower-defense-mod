@@ -566,6 +566,7 @@ public class GameManager implements StructureEventSink, IGameSession {
     public void startGameForTesting(ServerLevel world, BlockPos origin) {
         if (state != GameState.IDLE) return;
         this.world = world;
+        this.gameMode = GameMode.TEST;
         GameConfig.arenaOrigin = origin;
         BlockPos nexus1 = GameConfig.getPlayer1NexusCenter();
         BlockPos nexus2 = GameConfig.getPlayer2NexusCenter();

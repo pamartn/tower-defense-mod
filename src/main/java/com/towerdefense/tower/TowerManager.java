@@ -22,7 +22,9 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -91,7 +93,6 @@ public class TowerManager {
 
     private String getColorCode(TowerType type) {
         return switch (type) {
-            case BASIC -> "\u00a77";
             case ARCHER -> "\u00a7a";
             case CANNON -> "\u00a7c";
             case LASER -> "\u00a7b";
@@ -101,6 +102,7 @@ public class TowerManager {
             case SNIPER -> "\u00a78";
             case CHAIN_LIGHTNING -> "\u00a7e";
             case AOE -> "\u00a74";
+            case SHOTGUN -> "\u00a77";
         };
     }
 
@@ -112,7 +114,6 @@ public class TowerManager {
 
     private List<BlockPos> buildStructure(ServerLevel world, BlockPos base, TowerType type) {
         return switch (type) {
-            case BASIC -> buildBasicStructure(world, base);
             case ARCHER -> buildArcherStructure(world, base);
             case CANNON -> buildCannonStructure(world, base);
             case LASER -> buildLaserStructure(world, base);
@@ -122,16 +123,8 @@ public class TowerManager {
             case SNIPER -> buildSimpleStructure(world, base, Blocks.COPPER_BLOCK, Blocks.CUT_COPPER, Blocks.REDSTONE_TORCH);
             case CHAIN_LIGHTNING -> buildSimpleStructure(world, base, Blocks.GOLD_BLOCK, Blocks.LIGHTNING_ROD, Blocks.REDSTONE_LAMP);
             case AOE -> buildSimpleStructure(world, base, Blocks.TNT, Blocks.OBSERVER, Blocks.REDSTONE_BLOCK);
+            case SHOTGUN -> buildSimpleStructure(world, base, Blocks.COBBLESTONE, Blocks.STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS);
         };
-    }
-
-    private List<BlockPos> buildBasicStructure(ServerLevel world, BlockPos base) {
-        List<BlockPos> positions = new ArrayList<>();
-        placeAndTrack(world, base, Blocks.COBBLESTONE, positions);
-        placeAndTrack(world, base.above(1), Blocks.COBBLESTONE, positions);
-        placeAndTrack(world, base.above(2), Blocks.COBBLESTONE, positions);
-        placeAndTrack(world, base.above(3), Blocks.TORCH, positions);
-        return positions;
     }
 
     private List<BlockPos> buildArcherStructure(ServerLevel world, BlockPos base) {
@@ -250,7 +243,6 @@ public class TowerManager {
 
     private void dispatchAttack(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
         switch (tower.recipe().type()) {
-            case BASIC -> shootArrow(world, marker, target, tower);
             case ARCHER -> shootDoubleArrow(world, marker, target, tower);
             case CANNON -> shootCannonball(world, marker, target, tower);
             case LASER -> shootLaser(world, marker, target, tower);
@@ -260,6 +252,7 @@ public class TowerManager {
             case SNIPER -> shootSniper(world, marker, target, tower);
             case CHAIN_LIGHTNING -> shootChainLightning(world, marker, target, tower);
             case AOE -> shootAOE(world, marker, target, tower);
+            case SHOTGUN -> shootShotgun(world, marker, target, tower);
         }
     }
 
@@ -276,12 +269,45 @@ public class TowerManager {
 
             double dist = entity.position().distanceTo(center);
             if (dist < closestDist) {
-                closestDist = dist;
-                closest = (LivingEntity) entity;
+                LivingEntity le = (LivingEntity) entity;
+                Vec3 targetCenter = le.position().add(0, le.getBbHeight() * TowerConstants.TARGET_CENTER_FRACTION, 0);
+                // LOS eye is raised by ATTACK_ORIGIN_Y so the ray starts above the tower's
+                // top block (marker sits exactly on its surface, which world.clip treats as inside).
+                Vec3 eyePos = center.add(0, TowerConstants.ATTACK_ORIGIN_Y, 0);
+                if (hasLineOfSight(world, eyePos, targetCenter)) {
+                    closestDist = dist;
+                    closest = le;
+                }
             }
         }
 
         return closest;
+    }
+
+    private boolean hasLineOfSight(ServerLevel world, Vec3 from, Vec3 to) {
+        var hit = world.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        return hit.getType() == HitResult.Type.MISS;
+    }
+
+    private List<LivingEntity> findMultipleTargets(ServerLevel world, Vec3 center, int teamId, double range, int maxCount) {
+        boolean tdMode = gameManager != null && gameManager.isActive();
+        AABB scanBox = AABB.ofSize(center, range * 2, range * 2, range * 2);
+        String ownerTag = com.towerdefense.wave.MobTags.ownerTag(teamId);
+        // Same eye-position offset as findTarget
+        Vec3 eyePos = center.add(0, TowerConstants.ATTACK_ORIGIN_Y, 0);
+
+        List<LivingEntity> found = new ArrayList<>();
+        for (Entity entity : world.getEntities((Entity) null, scanBox, e -> e instanceof LivingEntity le && le.isAlive() && le.getTags().contains(com.towerdefense.wave.MobTags.MOB) && (!tdMode || !le.getTags().contains(ownerTag)))) {
+            if (entity.position().distanceTo(center) <= range) {
+                LivingEntity le = (LivingEntity) entity;
+                Vec3 targetCenter = le.position().add(0, le.getBbHeight() * TowerConstants.TARGET_CENTER_FRACTION, 0);
+                if (hasLineOfSight(world, eyePos, targetCenter)) {
+                    found.add(le);
+                }
+            }
+        }
+        found.sort((a, b) -> Double.compare(a.position().distanceTo(center), b.position().distanceTo(center)));
+        return found.subList(0, Math.min(maxCount, found.size()));
     }
 
     /**
@@ -299,24 +325,6 @@ public class TowerManager {
                 nx * TowerConstants.ARROW_ORIGIN_SHIFT,
                 TowerConstants.ARROW_ORIGIN_Y_DELTA,
                 nz * TowerConstants.ARROW_ORIGIN_SHIFT);
-    }
-
-    // ─── Attack: Basic (1 arrow) ───
-
-    private void shootArrow(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
-        AttackCtx ctx = ctx(marker, target, tower);
-        Vec3 origin = arrowOrigin(ctx.origin(), ctx.targetPos());
-        Vec3 direction = ctx.targetPos().subtract(origin).normalize().scale(TowerConstants.ARROW_SPEED);
-
-        Arrow arrow = new Arrow(EntityType.ARROW, world);
-        arrow.setPos(origin.x, origin.y, origin.z);
-        arrow.setDeltaMovement(direction);
-        arrow.setBaseDamage(ctx.power());
-        arrow.setOwner(marker);
-        world.addFreshEntity(arrow);
-
-        world.sendParticles(ParticleTypes.FLAME, origin.x, origin.y, origin.z, 3, 0.1, 0.1, 0.1, 0.01);
-        world.playSound(null, marker.blockPosition(), SoundEvents.ARROW_SHOOT, SoundSource.BLOCKS, 1.0f, 1.2f);
     }
 
     // ─── Attack: Archer (2 arrows with spread) ───
@@ -427,17 +435,23 @@ public class TowerManager {
         world.playSound(null, marker.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 1.0f, 1.0f);
     }
 
-    // ─── Attack: Slow (apply slowness) ───
+    // ─── Attack: Slow (apply slowness to multiple targets) ───
 
     private void shootSlow(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
         int duration = getEffectiveEffectDuration(tower, ConfigManager.getInstance().getSlowDurationTicks());
         int amplifier = ConfigManager.getInstance().getSlowAmplifier();
         Vec3 origin = marker.position().add(0, TowerConstants.ATTACK_ORIGIN_Y, 0);
 
-        target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, amplifier));
+        int targetCount = 2 + (towerUpgradeManager != null ? towerUpgradeManager.getLevel(tower.teamId(), tower.recipe().type()) : 0);
+        List<LivingEntity> targets = new ArrayList<>(findMultipleTargets(world, origin, tower.teamId(), tower.recipe().range(), targetCount));
+        if (targets.isEmpty()) targets.add(target);
+
+        for (LivingEntity t : targets) {
+            t.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, amplifier));
+            world.sendParticles(ParticleTypes.SNOWFLAKE, t.getX(), t.getY() + 0.5, t.getZ(), 10, 0.3, 0.5, 0.3, 0.02);
+        }
 
         world.sendParticles(ParticleTypes.SNOWFLAKE, origin.x, origin.y, origin.z, 8, 0.3, 0.3, 0.3, 0.05);
-        world.sendParticles(ParticleTypes.SNOWFLAKE, target.getX(), target.getY() + 0.5, target.getZ(), 10, 0.3, 0.5, 0.3, 0.02);
         world.playSound(null, marker.blockPosition(), SoundEvents.SNOW_GOLEM_SHOOT, SoundSource.BLOCKS, 1.0f, 1.2f);
     }
 
@@ -519,6 +533,30 @@ public class TowerManager {
 
         world.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.5, center.z, 5, 1.5, 0.5, 1.5, 0.01);
         world.playSound(null, marker.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 0.6f, 1.2f);
+    }
+
+    // ─── Attack: Shotgun (3 arrows in a fan) ───
+
+    private void shootShotgun(ServerLevel world, ArmorStand marker, LivingEntity target, ActiveTower tower) {
+        AttackCtx ctx = ctx(marker, target, tower);
+        Vec3 origin = arrowOrigin(ctx.origin(), ctx.targetPos());
+        Vec3 direction = ctx.targetPos().subtract(origin).normalize();
+        Vec3 perpendicular = new Vec3(-direction.z, 0, direction.x).normalize();
+
+        for (int i = -1; i <= 1; i++) {
+            Vec3 offset = perpendicular.scale(TowerConstants.SHOTGUN_SPREAD * i);
+            Vec3 arrowDir = direction.add(offset.scale(0.15)).normalize().scale(TowerConstants.ARROW_SPEED);
+
+            Arrow arrow = new Arrow(EntityType.ARROW, world);
+            arrow.setPos(origin.x + offset.x, origin.y, origin.z + offset.z);
+            arrow.setDeltaMovement(arrowDir);
+            arrow.setBaseDamage(ctx.power());
+            arrow.setOwner(marker);
+            world.addFreshEntity(arrow);
+        }
+
+        world.sendParticles(ParticleTypes.CRIT, origin.x, origin.y, origin.z, 6, 0.2, 0.2, 0.2, 0.05);
+        world.playSound(null, marker.blockPosition(), SoundEvents.ARROW_SHOOT, SoundSource.BLOCKS, 1.0f, 0.9f);
     }
 
     private boolean hasStructureDamage(ServerLevel world, ActiveTower tower) {
