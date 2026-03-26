@@ -11,7 +11,8 @@
       "com.towerdefense.test.GameManagerTests",
       "com.towerdefense.test.WitchHealTests",
       "com.towerdefense.test.ArcherTowerTests",
-      "com.towerdefense.test.MobMovementTests"
+      "com.towerdefense.test.MobMovementTests",
+      "com.towerdefense.test.WallFireballTests"
     ]
   },
   "depends": {
